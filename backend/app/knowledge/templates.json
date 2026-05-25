@@ -1,0 +1,1231 @@
+[
+  {
+    "id": "tpl-001",
+    "doc_type": "行政处罚决定书",
+    "name": "公安行政处罚决定书",
+    "description": "适用于治安管理处罚的行政处罚决定书",
+    "schema_fields": [
+      {
+        "key": "party_name",
+        "label": "当事人姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "party_gender",
+        "label": "性别",
+        "type": "dict",
+        "required": false
+      },
+      {
+        "key": "party_age",
+        "label": "年龄",
+        "type": "number",
+        "required": false
+      },
+      {
+        "key": "party_id_number",
+        "label": "居民身份证号码",
+        "type": "id_card",
+        "required": false
+      },
+      {
+        "key": "birth_date",
+        "label": "出生日期",
+        "type": "date",
+        "required": false
+      },
+      {
+        "key": "native_place",
+        "label": "籍贯",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "household_register",
+        "label": "户籍地",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "party_address",
+        "label": "现住址",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "work_unit",
+        "label": "工作单位",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "criminal_record",
+        "label": "违法犯罪经历",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "case_occurrence_date",
+        "label": "案发日期",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "case_occurrence_place",
+        "label": "案发地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "illegal_fact",
+        "label": "违法事实（完整叙述，含证据）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "penalty_basis",
+        "label": "处罚依据",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "penalty_content",
+        "label": "处罚内容",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "fine_amount",
+        "label": "罚款金额（元）",
+        "type": "number",
+        "required": false
+      },
+      {
+        "key": "execution_detail",
+        "label": "执行方式和期限",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "doc_number",
+        "label": "文书编号",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "penalty_decision_date",
+        "label": "处罚决定日期",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "reconsideration_org",
+        "label": "行政复议机关",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "lawsuit_court",
+        "label": "行政诉讼法院",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "case_number",
+        "label": "案件编号",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "personnel_number",
+        "label": "人员编号",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "department",
+        "label": "办案单位",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "author_name",
+        "label": "办案民警",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "{{department}}\n行政处罚决定书\n{{doc_number}}\n违法行为人{{party_name}}，{{party_gender}}，{{party_age}}岁，居民身份证号码{{party_id_number}}，{{birth_date}}出生，籍贯：{{native_place}}，户籍：{{household_register}}，现住：{{party_address}}，工作单位：{{work_unit}}，违法犯罪经历：{{criminal_record}}。\n\n现查明{{illegal_fact}}，以上事实有检查笔录、违法行为人的陈述和申辩，其他等证据证实。\n\n根据{{penalty_basis}}之规定，现决定对违法行为人{{party_name}}处以{{penalty_content}}。\n\n执行方式和期限{{execution_detail}}\n\n逾期不交纳罚款的，每日按罚款数额的百分之三加处罚款，罚款的数额不超过罚款本数。\n\n一式四份，被处罚人和执行单位各一份，被侵害人一份，一份附卷。登陆www.gazxfz.gov.cn查询该行政处罚公开和网上申请行政复议。\n\n如不服本决定，可以在收到本决定书之日起六十日内向{{reconsideration_org}}申请行政复议或者在六个月内依法向{{lawsuit_court}}提起行政诉讼。\n\n附：  清单共  份\n\n{{department}}\n{{stamp_date}}\n\n行政处罚决定书已向我宣告并送达。\n被处罚人:                        被侵害人：\n          年    月    日                  年    月    日\n接收人员：\n接收单位（印）\n          年    月    日\n\n案件编号：{{case_number}}\n人员编号：{{personnel_number}}",
+    "fixed_clauses": [
+      "如不服本决定，可以在收到本决定书之日起六十日内申请行政复议或者在六个月内依法提起行政诉讼。",
+      "逾期不交纳罚款的，每日按罚款数额的百分之三加处罚款，罚款的数额不超过罚款本数。",
+      "一式四份，被处罚人和执行单位各一份，被侵害人一份，一份附卷。"
+    ],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "title_font_size": "小二",
+      "body_font_size": "三号",
+      "body_indent": "首行缩进2字符"
+    }
+  },
+  {
+    "id": "tpl-006",
+    "doc_type": "检查笔录",
+    "name": "检查笔录",
+    "description": "公安机关对违法嫌疑人身体、物品、场所进行检查的法律文书（依据治安管理处罚法第八十七条）",
+    "schema_fields": [
+      {
+        "key": "police_station",
+        "label": "公安机关名称",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "inspection_time_start",
+        "label": "检查开始时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "inspection_time_end",
+        "label": "检查结束时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "inspection_place",
+        "label": "检查地点（默认为公安机关名称+检查室）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "inspection_target",
+        "label": "被检查人（姓名）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "violation_type",
+        "label": "违法性质",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "inspector_name",
+        "label": "检查人姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "inspector_unit",
+        "label": "检查人工作单位",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "witness_info",
+        "label": "见证人基本情况（姓名、性别、身份证件种类及号码）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "items_found",
+        "label": "有无发现涉案物品",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "injury_found",
+        "label": "有无发现损伤",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "{{police_station}}\n检 查 笔  录\n\n检查时间：{{inspection_time_start}}至{{inspection_time_end}}\n检查地点：{{inspection_place}}\n检查对象：{{inspection_target_display}}\n检查人姓名和工作单位：{{inspector_unit}}\n见证人基本情况 （姓名、性别、身份证件种类及号码）\n\n事由和目的：{{inspection_reason}}\n过程和结果：{{inspection_date}}，我所民警将涉嫌{{violation_type}}的违法嫌疑人{{inspection_target}}抓获，民警对违法嫌疑人{{inspection_target}}出示人民警察证，根据《中华人民共和国治安管理处罚法》第八十七条第一款之规定依法对违法嫌疑人{{inspection_target}}的身体进行检查。经检查，在违法嫌疑人{{inspection_target}}身上{{items_found}}，在{{inspection_target}}身上{{injury_found}}，被检查人{{inspection_target}}配合检查工作。\n检查人：　　　　　　　　　　　　年　月　日\n见证人：　　　　　　　　　　　　年　月　日\n当事人：　　　　　　　　　　　　年　月　日",
+    "fixed_clauses": [],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "law_ref": "《中华人民共和国治安管理处罚法》第八十七条",
+      "signature_required": true
+    }
+  },
+  {
+    "id": "tpl-007",
+    "doc_type": "现场勘查笔录",
+    "name": "现场勘查笔录",
+    "description": "刑事案件或行政案件现场勘查的法律文书",
+    "schema_fields": [
+      {
+        "key": "case_number",
+        "label": "案件编号",
+        "type": "case_number",
+        "required": true
+      },
+      {
+        "key": "crime_scene_time_start",
+        "label": "勘查开始时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "crime_scene_time_end",
+        "label": "勘查结束时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "crime_scene_location",
+        "label": "勘查地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "weather_condition",
+        "label": "天气状况",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "lighting_condition",
+        "label": "照明条件",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "investigator_names",
+        "label": "勘查人员",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "recorder_name",
+        "label": "记录人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "label": "见证人（至少2名）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "scene_protection_status",
+        "label": "现场保护情况",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "scene_description",
+        "label": "现场方位及中心现场描述",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "evidence_collected",
+        "label": "提取痕迹物证情况",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "photo_count",
+        "label": "现场照片数量",
+        "type": "number",
+        "required": false
+      },
+      {
+        "key": "sketch_info",
+        "label": "现场图信息",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "video_info",
+        "label": "录像信息",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "author_name",
+        "label": "办案民警",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "department",
+        "label": "办案单位",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "现 场 勘 查 笔 录\n\n勘查时间：{{crime_scene_time_start}} 至 {{crime_scene_time_end}}\n勘查地点：{{crime_scene_location}}\n天气：{{weather_condition}}    照明条件：{{lighting_condition}}\n\n勘查人员：{{investigator_names}}\n记录人：{{recorder_name}}\n见证人：{{witnesses}}\n\n现场保护情况：\n{{scene_protection_status}}\n\n勘验检查情况：\n\n一、现场方位及中心现场描述\n{{scene_description}}\n\n二、提取痕迹物证情况\n{{evidence_collected}}\n\n三、现场照片：拍摄{{photo_count}}张\n四、现场图：{{sketch_info}}\n五、录像：{{video_info}}\n\n（以下无正文）\n\n勘查人员签名：\n见证人签名：\n记录人签名：              {{crime_scene_time_end}}\n\n办案单位：{{department}}",
+    "fixed_clauses": [
+      "勘查人员在见证人的见证下，按照刑事技术规范进行了现场勘查。",
+      "勘查中发现和提取的痕迹物证均拍照固定，并依法提取、包装、送检。"
+    ],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "witness_requirement": "至少2名见证人",
+      "photo_attachment": "现场照片附后"
+    }
+  },
+  {
+    "id": "tpl-008",
+    "doc_type": "辨认笔录",
+    "name": "辨认笔录",
+    "description": "公安机关组织被害人、证人或犯罪嫌疑人对涉案人员照片进行辨认的法律文书",
+    "schema_fields": [
+      {
+        "key": "police_station",
+        "label": "公安机关名称",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_time_start",
+        "label": "辨认开始时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "identification_time_end",
+        "label": "辨认结束时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "identification_place",
+        "label": "辨认地点（默认为公安机关名称+询问室）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "investigator_name",
+        "label": "办案人员姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "investigator_unit",
+        "label": "办案人员单位",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identifier_name",
+        "label": "辨认人姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identifier_id_number",
+        "label": "辨认人证件号",
+        "type": "id_card",
+        "required": true
+      },
+      {
+        "key": "identifier_role",
+        "label": "辨认人身份",
+        "type": "dict",
+        "required": true
+      },
+      {
+        "key": "witness_name",
+        "label": "见证人姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "witness_address",
+        "label": "见证人住址",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_target",
+        "label": "辨认对象",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "case_date",
+        "label": "案发日期",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "case_location",
+        "label": "案发地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "violation_type",
+        "label": "案件性质/案由",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_purpose",
+        "label": "辨认目的（系统自动生成）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "case_background",
+        "label": "案件背景及辨认准备过程",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_operation",
+        "label": "辨认操作描述（系统自动生成）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "identification_results",
+        "label": "辨认结果",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_conclusion",
+        "label": "辨认结论（系统自动生成）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "identification_confirmation",
+        "label": "辨认确认声明（系统自动生成）",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "recorder_name",
+        "label": "记录人",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "                                 辨 认 笔 录\n时间：{{identification_time_start}}至{{identification_time_end}}\n地点：{{identification_place}}\n办案人员姓名、单位：{{investigator_name}}、{{investigator_unit}}\n辨认人姓名：{{identifier_name}}  证件号：{{identifier_id_number}}\n见证人姓名、单位：{{witness_name}}     住址：{{witness_address}}\n辨认对象：{{identification_target}}\n辨认目的：{{identification_purpose}}\n辨认过程及结果：\n{{case_background}}\n{{identification_operation}}\n{{identification_results}}\n{{identification_conclusion}}\n{{identification_confirmation}}\n办案人员：　　　　　　　　　　　　记录人：　　　　　　　　　　　　\n见证人：　　　　　　　　　　　　　　辨认人：　　　　　　　　　　　　",
+    "fixed_clauses": [],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "signature_required": true
+    }
+  },
+  {
+    "id": "tpl-009",
+    "doc_type": "搜查笔录",
+    "name": "搜查笔录",
+    "description": "公安机关对犯罪嫌疑人及可能隐藏犯罪证据的场所进行搜查的法律文书",
+    "schema_fields": [
+      {
+        "key": "case_number",
+        "label": "案件编号",
+        "type": "case_number",
+        "required": true
+      },
+      {
+        "key": "search_time_start",
+        "label": "搜查开始时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "search_time_end",
+        "label": "搜查结束时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "search_place",
+        "label": "搜查地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "search_officers",
+        "label": "搜查人员",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "recorder_name",
+        "label": "记录人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "label": "被搜查人/见证人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "search_warrant_number",
+        "label": "搜查证编号",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "search_scope",
+        "label": "搜查范围",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "search_process",
+        "label": "搜查过程记录",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "items_found",
+        "label": "查获物品及存放位置",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "items_seized",
+        "label": "扣押物品",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "damage_record",
+        "label": "搜查过程中损坏物品情况",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "searched_person_opinion",
+        "label": "被搜查人意见",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "author_name",
+        "label": "办案民警",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "department",
+        "label": "办案单位",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "搜 查 笔 录\n\n案件编号：{{case_number}}\n\n搜查时间：{{search_time_start}} 至 {{search_time_end}}\n搜查地点：{{search_place}}\n\n搜查人员：{{search_officers}}\n记录人：{{recorder_name}}\n被搜查人/见证人：{{witnesses}}\n\n搜查证编号：{{search_warrant_number}}\n搜查范围：{{search_scope}}\n\n搜查过程：\n{{search_process}}\n\n查获物品及存放位置：\n{{items_found}}\n\n扣押物品：{{items_seized}}\n\n搜查过程中损坏物品情况：{{damage_record}}\n\n被搜查人对搜查的意见：{{searched_person_opinion}}\n\n（以下无正文）\n\n被搜查人签名：\n见证人签名：\n搜查人员签名：              {{search_time_end}}\n\n办案单位：{{department}}",
+    "fixed_clauses": [
+      "搜查人员向被搜查人出示了《搜查证》，告知其相关权利义务。",
+      "除紧急情况外，搜查应当在白天进行，本笔录如实记录了搜查全过程。"
+    ],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "warrant_required": true,
+      "witness_requirement": "被搜查人或其家属、邻居或其他见证人须在场"
+    }
+  },
+  {
+    "id": "tpl-010",
+    "doc_type": "行政处罚告知笔录",
+    "name": "行政处罚告知笔录",
+    "description": "公安机关在作出行政处罚决定前告知当事人拟处罚内容及权利的法律文书",
+    "schema_fields": [
+      {
+        "key": "department",
+        "label": "执行告知单位",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "notifier_names",
+        "label": "告知人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "recorded_person",
+        "label": "被告知人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "legal_representative",
+        "label": "单位法定代表人",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "case_description",
+        "label": "案件描述（违法事实经过）",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "evidence_list",
+        "label": "证据列表",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "violation_type",
+        "label": "违法性质/案由",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "penalty_basis",
+        "label": "处罚依据",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "proposed_penalty",
+        "label": "拟处罚内容",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "notified_person_statement",
+        "label": "被告知人陈述申辩",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "notification_time",
+        "label": "告知时间",
+        "type": "datetime",
+        "required": false
+      },
+      {
+        "key": "author_name",
+        "label": "办案民警",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "case_number",
+        "label": "案件编号",
+        "type": "case_number",
+        "required": false
+      }
+    ],
+    "template_text": "{{department}}\n行政处罚告知笔录\n执行告知单位：{{department}}\n告知人：{{notifier_names}}\n被告知人：{{recorded_person}} 单位法定代表人：{{legal_representative}}\n告知内容：\n\n    根据《中华人民共和国行政处罚法》第四十四条之规定，现将拟作出的行政处罚内容及事实、理由、依据告知如下： {{case_description}}，以上事实有：{{evidence_list}}等证据为证。你的行为已经构成{{violation_type}}，公安机关将根据{{penalty_basis}}之规定，拟对你处以{{proposed_penalty}}。\n问：对上述告知事项，你（单位）是否提出陈述和申辩？公安机关不因你（单位）的陈述、申辩而加重处罚。（对被告知人的陈述和申辩可附页记录，被告知人提供书面陈述、申辩材料的，应当附上，并在本告知笔录中注明；违法行为人不满十八周岁的，还应当告知违法行为人的父母或者其他监护人，记录其意见。）\n答：{{notified_person_statement}}\n    对你提出的陈述和申辩，公安机关将进行复核。\n被告知人（及监护人）:\n年 月 日 时 分",
+    "fixed_clauses": [
+      "根据《中华人民共和国行政处罚法》第四十四条之规定，现将拟作出的行政处罚内容及事实、理由、依据告知如下：",
+      "对上述告知事项，你享有陈述和申辩的权利；符合法定听证条件的，有权要求听证。"
+    ],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "legal_ref": "《行政处罚法》第44条",
+      "signature_required": true
+    }
+  },
+  {
+    "id": "tpl-011",
+    "doc_type": "调解协议书",
+    "name": "治安调解协议书",
+    "description": "公安机关对因民间纠纷引起的治安案件进行调解后使用的法律文书",
+    "schema_fields": [
+      {
+        "key": "case_number",
+        "label": "案件编号",
+        "type": "case_number",
+        "required": true
+      },
+      {
+        "key": "mediation_time",
+        "label": "调解时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "mediation_place",
+        "label": "调解地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "mediator_names",
+        "label": "主持人/调解人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "recorder_name",
+        "label": "记录人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "party_a_name",
+        "label": "甲方（当事人）姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "party_a_id",
+        "label": "甲方身份证号",
+        "type": "id_card",
+        "required": false
+      },
+      {
+        "key": "party_a_address",
+        "label": "甲方住址",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "party_a_phone",
+        "label": "甲方联系电话",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "party_b_name",
+        "label": "乙方（当事人）姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "party_b_id",
+        "label": "乙方身份证号",
+        "type": "id_card",
+        "required": false
+      },
+      {
+        "key": "party_b_address",
+        "label": "乙方住址",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "party_b_phone",
+        "label": "乙方联系电话",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "dispute_fact",
+        "label": "纠纷事实",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "mediation_agreement",
+        "label": "调解协议内容",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "compensation_amount",
+        "label": "赔偿金额（元）",
+        "type": "number",
+        "required": false
+      },
+      {
+        "key": "fulfillment_deadline",
+        "label": "履行期限",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "fulfillment_method",
+        "label": "履行方式",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "voluntary_statement",
+        "label": "自愿调解声明",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "author_name",
+        "label": "办案民警",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "department",
+        "label": "办案单位",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "治安调解协议书\n\n案件编号：{{case_number}}\n\n调解时间：{{mediation_time}}\n调解地点：{{mediation_place}}\n\n主持人：{{mediator_names}}\n记录人：{{recorder_name}}\n\n甲方：{{party_a_name}}（身份证号：{{party_a_id}}）\n住址：{{party_a_address}}\n联系电话：{{party_a_phone}}\n\n乙方：{{party_b_name}}（身份证号：{{party_b_id}}）\n住址：{{party_b_address}}\n联系电话：{{party_b_phone}}\n\n纠纷事实：\n{{dispute_fact}}\n\n经调解，双方自愿达成如下协议：\n{{mediation_agreement}}\n\n赔偿金额：人民币{{compensation_amount}}元\n履行期限：{{fulfillment_deadline}}\n履行方式：{{fulfillment_method}}\n\n{{voluntary_statement}}\n\n本协议一式三份，甲、乙双方各执一份，公安机关留存一份。\n\n甲方签名：\n乙方签名：\n主持人签名：              {{mediation_time}}\n\n办案单位：{{department}}",
+    "fixed_clauses": [
+      "经公安机关主持调解，甲、乙双方在平等、自愿的基础上协商一致，达成如下调解协议。",
+      "本协议系双方真实意思表示，经双方签字后生效。双方应自觉履行协议内容，如一方不履行，另一方可依法向人民法院提起民事诉讼。"
+    ],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "legal_ref": "《治安管理处罚法》第9条",
+      "copies": "一式三份"
+    }
+  },
+  {
+    "id": "tpl-012",
+    "doc_type": "扣押决定书",
+    "name": "扣押决定书及清单",
+    "description": "公安机关依法扣押涉案财物的法律文书",
+    "schema_fields": [
+      {
+        "key": "case_number",
+        "label": "案件编号",
+        "type": "case_number",
+        "required": true
+      },
+      {
+        "key": "seizure_date",
+        "label": "扣押日期",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "seizure_place",
+        "label": "扣押地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "item_owner",
+        "label": "物品持有人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "owner_id",
+        "label": "持有人身份证号",
+        "type": "id_card",
+        "required": false
+      },
+      {
+        "key": "seizure_basis",
+        "label": "扣押依据",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "seized_items_list",
+        "label": "扣押物品清单",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "total_item_count",
+        "label": "扣押物品总数",
+        "type": "number",
+        "required": true
+      },
+      {
+        "key": "storage_place",
+        "label": "保管地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "custodian_name",
+        "label": "保管人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "rights_statement",
+        "label": "权利告知",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "owner_opinion",
+        "label": "物品持有人意见",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "disposal_remark",
+        "label": "处理决定备注",
+        "type": "text",
+        "required": false
+      },
+      {
+        "key": "author_name",
+        "label": "办案民警",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "department",
+        "label": "办案单位",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "扣 押 决 定 书\n\n案件编号：{{case_number}}\n\n扣押日期：{{seizure_date}}\n扣押地点：{{seizure_place}}\n\n物品持有人：{{item_owner}}（身份证号：{{owner_id}}）\n\n扣押依据：{{seizure_basis}}\n\n扣押物品清单：\n{{seized_items_list}}\n\n上述物品共计{{total_item_count}}件。\n\n保管地点：{{storage_place}}\n保管人：{{custodian_name}}\n\n权利告知：\n{{rights_statement}}\n\n物品持有人意见：\n{{owner_opinion}}\n\n处理决定备注：{{disposal_remark}}\n\n（以下无正文）\n\n物品持有人签名：\n见证人签名：\n办案民警签名：              {{seizure_date}}\n\n办案单位：{{department}}",
+    "fixed_clauses": [
+      "物品持有人对上述扣押物品无异议的，签字确认；有异议的，可当场提出并记入笔录。",
+      "扣押物品应当妥善保管，不得使用、调换、损毁或自行处理。与案件无关的物品应当在三日内解除扣押并退还。"
+    ],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "legal_ref": "《行政强制法》、《治安管理处罚法》第89条",
+      "inventory_attachment": "扣押物品清单附后"
+    }
+  },
+  {
+    "id": "tpl-014",
+    "doc_type": "指认笔录",
+    "name": "指认笔录",
+    "description": "公安机关组织嫌疑人对其犯罪现场、涉案物品等进行指认的法律文书",
+    "schema_fields": [
+      {
+        "key": "police_station",
+        "label": "公安机关名称",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_time_start",
+        "label": "指认开始时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "identification_time_end",
+        "label": "指认结束时间",
+        "type": "datetime",
+        "required": true
+      },
+      {
+        "key": "identification_place",
+        "label": "指认地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "investigator_name",
+        "label": "侦查人员姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "investigator_unit",
+        "label": "侦查人员单位",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identifier_name",
+        "label": "指认人姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identifier_gender",
+        "label": "指认人性别",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identifier_address",
+        "label": "指认人户籍地址",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "witness_name",
+        "label": "见证人姓名",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "witness_info",
+        "label": "见证人单位/住址",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "case_date",
+        "label": "案发日期",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "case_location",
+        "label": "案发地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "case_description",
+        "label": "案发经过简述",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "violation_type",
+        "label": "案件性质/案由",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_confirmation",
+        "label": "指认确认内容",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_target",
+        "label": "指认对象",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "identification_process",
+        "label": "指认过程及结果",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "recorder_name",
+        "label": "记录人",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "                               {{police_station}}\n                                指 认 笔 录\n\n 时间：{{identification_time_start}}至{{identification_time_end}}\n 地点：{{identification_place}}\n\n 侦查人员姓名、单位：{{investigator_name}}、{{investigator_unit}}\n\n 指认人姓名：{{identifier_name}}，{{identifier_gender}}，户籍地址：{{identifier_address}}\n\n 见证人姓名、单位：{{witness_name}}          {{witness_info}}\n\n 指认对象：{{identification_target}}\n\n 指认目的：{{identification_purpose}}\n\n 指认过程及结果：\n 指认人{{identifier_name}}为本案的嫌疑人，{{case_date}}，{{identifier_name}}{{case_description}}。经侦查，{{identifier_name}}{{violation_type}}行为属实，为此，{{police_station}}民警在见证人{{witness_name}}的见证下将{{identifier_name}}带到{{identification_target}}进行指认。{{identifier_name}}确认{{identification_confirmation}}。\n 在指认过程中，指认人{{identifier_name}}配合办案民警指认{{identification_target}}，办案民警对指认过程录音录像并拍照。\n\n侦查员：　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　记录人：\n\n见证人：　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　指认人：",
+    "fixed_clauses": [],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "signature_required": true
+    }
+  },
+  {
+    "id": "tpl-013",
+    "doc_type": "结案报告",
+    "name": "案件结案报告",
+    "description": "行政/刑事案件处理完毕后，办案单位呈请结案审批的法律文书",
+    "schema_fields": [
+      {
+        "key": "case_number",
+        "label": "案件编号",
+        "type": "case_number",
+        "required": true
+      },
+      {
+        "key": "case_nature",
+        "label": "案件性质",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "suspect_name",
+        "label": "违法/犯罪嫌疑人",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "suspect_id",
+        "label": "嫌疑人身份证号",
+        "type": "id_card",
+        "required": false
+      },
+      {
+        "key": "case_discovery_time",
+        "label": "发案时间",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "case_discovery_place",
+        "label": "发案地点",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "label": "立案日期",
+        "type": "date",
+        "required": false
+      },
+      {
+        "key": "investigation_summary",
+        "label": "侦查/调查经过",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "evidence_summary",
+        "label": "证据情况综述",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "case_conclusion",
+        "label": "案件事实认定结论",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "handling_suggestion",
+        "label": "处理意见",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "law_application",
+        "label": "法律适用说明",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "closing_date",
+        "label": "呈请结案日期",
+        "type": "date",
+        "required": true
+      },
+      {
+        "key": "author_name",
+        "label": "办案民警",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "department",
+        "label": "办案单位",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "approval_opinion",
+        "label": "审批意见",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "template_text": "案 件 结 案 报 告\n\n案件编号：{{case_number}}\n案件性质：{{case_nature}}\n\n违法/犯罪嫌疑人：{{suspect_name}}（身份证号：{{suspect_id}}）\n\n发案时间：{{case_discovery_time}}\n发案地点：{{case_discovery_place}}\n立案日期：{{filing_date}}\n\n侦查/调查经过：\n{{investigation_summary}}\n\n证据情况综述：\n{{evidence_summary}}\n\n案件事实认定结论：\n{{case_conclusion}}\n\n法律适用说明：\n{{law_application}}\n\n处理意见：\n{{handling_suggestion}}\n\n呈请结案日期：{{closing_date}}\n\n办案民警：{{author_name}}\n办案单位：{{department}}\n\n审批意见：\n{{approval_opinion}}",
+    "fixed_clauses": [
+      "本案已查清全部犯罪/违法事实，证据确实充分，法律手续完备，符合结案条件。"
+    ],
+    "format_rules": {
+      "paper_size": "A4",
+      "font": "仿宋_GB2312",
+      "legal_ref": "《公安机关办理刑事案件程序规定》第274条、《公安机关办理行政案件程序规定》"
+    }
+  }
+]

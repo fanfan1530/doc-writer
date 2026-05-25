@@ -1,0 +1,44 @@
+{
+  "active_model_id": "deepseek-v4-flash",
+  "providers": [
+    {
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro",
+      "provider": "DeepSeek",
+      "base_url": "https://api.deepseek.com/v1",
+      "model_name": "deepseek-v4-pro",
+      "model_name_large": "deepseek-v4-pro",
+      "api_key": "sk-c85bf3c84c944f099f89053b8d1ce680",
+      "requires_key": true,
+      "temperature": 0.1,
+      "max_tokens": 4096,
+      "system_prompt": "你是一名公安文书处理专家，擅长从案情描述中精准抽取关键要素并生成规范的法律文书。你必须严格按照用户要求的JSON格式输出，不得遗漏任何要素，不得编造信息。"
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "name": "DeepSeek V4 Flash",
+      "provider": "DeepSeek",
+      "base_url": "https://api.deepseek.com/v1",
+      "model_name": "deepseek-v4-flash",
+      "model_name_large": "deepseek-v4-flash",
+      "api_key": "sk-c85bf3c84c944f099f89053b8d1ce680",
+      "requires_key": true,
+      "temperature": 0.1,
+      "max_tokens": 4096,
+      "system_prompt": "你是一名公安文书处理专家，擅长从案情描述中精准抽取关键要素并生成规范的法律文书。你必须严格按照用户要求的JSON格式输出，不得遗漏任何要素，不得编造信息。"
+    },
+    {
+      "id": "minimax-m2.7",
+      "name": "MiniMax M2.7",
+      "provider": "MiniMax",
+      "base_url": "https://api.minimax.chat/v1",
+      "model_name": "MiniMax-M2.7",
+      "model_name_large": "MiniMax-M2.7",
+      "api_key": "sk-api-f2Vxl6P1dTNHuJAnDl_UhABD37niv033GuB080e4J2nu_MkuR9k7Kxyrjc7v3UMFmcPh0QcL4lR1bJCClXWvBx_ZeE881eq_rqswZOzdfg1CshUxNAhT7hw",
+      "requires_key": true,
+      "temperature": 0.1,
+      "max_tokens": 4096,
+      "system_prompt": "你是一名公安文书处理专家。你必须严格按照JSON格式输出抽取结果。每个字段都必须填写，未知字段填null。时间字段必须精确到分钟，格式为YYYY-MM-DD HH:MM（如2026-05-21 20:00），严禁只输出日期。只从输入信息中提取，严禁编造。输出格式必须为合法的JSON对象。"
+    }
+  ]
+}
