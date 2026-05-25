@@ -80,10 +80,13 @@ async def switch_model(body: SwitchModelRequest):
 
 @router.post("/config")
 async def save_model_config(body: ModelConfigRequest):
-    """保存或更新模型配置（含 API Key）。"""
+    """保存或更新模型配置（含 API Key）。新增模型会自动切换为当前模型。"""
     try:
+        is_new = not body.id
         config = model_manager.save_model_config(body.model_dump())
-        return {"success": True, "model": config}
+        if is_new:
+            model_manager.switch_model(config["id"])
+        return {"success": True, "model": config, "is_new": is_new}
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 

@@ -169,7 +169,15 @@ class ModelManager:
             raise ValueError(f"模型 '{model_id}' 不存在")
         else:
             # 新增自定义模型
-            new_id = f"custom-{len([p for p in self._providers if p['id'].startswith('custom-')]) + 1}"
+            custom_nums = []
+            for p in self._providers:
+                if p['id'].startswith('custom-'):
+                    try:
+                        custom_nums.append(int(p['id'].split('-')[1]))
+                    except ValueError:
+                        pass
+            next_num = max(custom_nums, default=0) + 1
+            new_id = f"custom-{next_num}"
             new_config = {
                 "id": new_id,
                 "name": config.get("name", "自定义模型"),

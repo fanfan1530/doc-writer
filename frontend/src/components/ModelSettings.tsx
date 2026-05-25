@@ -55,6 +55,8 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
         model_name: preset.model_name,
         model_name_large: preset.model_name_large,
       });
+    } else {
+      form.setFieldsValue({ edit_id: '' });
     }
     setTestResult(null);
   };
@@ -90,7 +92,7 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
     const values = await form.validateFields();
     setSaving(true);
     try {
-      await client.post('/models/config', {
+      const { data } = await client.post('/models/config', {
         id: values.edit_id || '',
         name: values.name,
         provider: values.provider || '自定义',
@@ -99,12 +101,14 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
         model_name_large: values.model_name_large || '',
         api_key: values.api_key || '',
       });
-      message.success('模型配置已保存');
+      const action = data.is_new ? '添加' : '更新';
+      message.success(`模型${action}成功`);
       form.resetFields();
       setTestResult(null);
       onSaved();
       onClose();
     } catch (err) {
+      console.error('保存模型配置失败:', err);
       message.error(`保存失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setSaving(false);

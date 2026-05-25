@@ -18,8 +18,11 @@ export default function Header() {
       setModels(list);
       const active = list.find((m) => m.is_active);
       if (active) setCurrentId(active.id);
-    } catch {
-      // silent
+      else if (list.length > 0) {
+        setCurrentId(list[0].id);
+      }
+    } catch (err) {
+      console.error('获取模型列表失败:', err);
     }
   }, []);
 
