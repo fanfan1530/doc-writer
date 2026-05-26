@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Button, Input, Select, Typography, Tag, App, Popconfirm, Empty, Spin,
+  Button, Input, Select, Typography, Tag, App, Popconfirm, Empty, Spin, Segmented,
 } from 'antd';
 import {
   SendOutlined, PlusOutlined, DeleteOutlined,
@@ -62,6 +62,7 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
   const [thinkingText, setThinkingText] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallState[]>([]);
   const [loadingConvs, setLoadingConvs] = useState(false);
+  const [mode, setMode] = useState<'concise' | 'detailed'>('concise');
 
   const msgListRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -196,6 +197,7 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
           conversation_id: convId || undefined,
           doc_context: docContext,
           include_history: true,
+          mode,
         }),
         signal: controller.signal,
       });
@@ -397,6 +399,16 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
           <RobotOutlined className="text-police-600" />
           AI 助手
         </span>
+        <Segmented
+          size="small"
+          value={mode}
+          onChange={(v) => setMode(v as 'concise' | 'detailed')}
+          options={[
+            { label: '简洁', value: 'concise' },
+            { label: '详细', value: 'detailed' },
+          ]}
+          className="flex-shrink-0"
+        />
         <Select
           size="small"
           value={convId}

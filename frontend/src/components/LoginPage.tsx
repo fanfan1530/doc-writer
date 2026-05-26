@@ -1,6 +1,7 @@
 /** 登录页面 —— 使用默认 admin 账户或自定义登录。 */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Input, Button, Typography, App } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { setTokens } from '../api/client';
@@ -8,11 +9,18 @@ import { setTokens } from '../api/client';
 const { Text, Title } = Typography;
 
 interface Props {
-  onLogin: () => void;
+  onLogin?: () => void;
 }
 
 export default function LoginPage({ onLogin }: Props) {
   const { message } = App.useApp();
+  // useNavigate may throw if not inside a Router (App_v2 fallback)
+  let navigate: ReturnType<typeof useNavigate> | undefined;
+  try {
+    navigate = useNavigate();
+  } catch {
+    navigate = undefined;
+  }
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
@@ -36,7 +44,10 @@ export default function LoginPage({ onLogin }: Props) {
       const data = await resp.json();
       setTokens(data.access_token, data.refresh_token);
       message.success(`欢迎，${data.username}`);
-      onLogin();
+      if (navigate) {
+        navigate('/dashboard', { replace: true });
+      }
+      onLogin?.();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '登录失败');
     } finally {
@@ -48,9 +59,9 @@ export default function LoginPage({ onLogin }: Props) {
     <div className="h-screen flex items-center justify-center bg-gradient-to-br from-police-900 via-police-700 to-police-600">
       <div className="w-full max-w-[400px] px-4">
         <div className="text-center mb-8">
-          <span className="text-5xl">⚖️</span>
-          <Title level={2} className="!text-white !mb-1">智能文书编写系统</Title>
-          <Text className="text-police-200">公安机关 AI 辅助办案平台</Text>
+          <span className="text-5xl">🛡️</span>
+          <Title level={2} className="!text-white !mb-1">智慧警务智能工作台</Title>
+          <Text className="text-police-200">AI 驱动的公安执法辅助平台</Text>
         </div>
 
         <Card className="shadow-xl border-0 rounded-2xl" styles={{ body: { padding: '32px' } }}>

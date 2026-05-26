@@ -10,9 +10,10 @@ interface Props {
   onClose: () => void;
   models: ModelProvider[];
   onSaved: () => void;
+  editModel?: ModelProvider | null;
 }
 
-export default function ModelSettings({ open, onClose, models, onSaved }: Props) {
+export default function ModelSettings({ open, onClose, models, onSaved, editModel }: Props) {
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [testing, setTesting] = useState(false);
@@ -114,8 +115,21 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
       setTestResult(null);
       form.resetFields();
       form.setFieldsValue({ api_type: 'openai' });
+    } else if (editModel) {
+      // 编辑模式：预填已有模型数据
+      setTestResult(null);
+      form.setFieldsValue({
+        edit_id: editModel.id,
+        name: editModel.name,
+        provider: editModel.provider,
+        base_url: editModel.base_url,
+        model_name: editModel.model_name,
+        model_name_large: editModel.model_name_large || '',
+        api_key: '',
+        api_type: editModel.api_type || 'openai',
+      });
     }
-  }, [open, form]);
+  }, [open, editModel, form]);
 
   return (
     <Modal

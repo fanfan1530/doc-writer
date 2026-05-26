@@ -114,3 +114,85 @@ body {
   padding: 6px 12px !important;
   font-size: 13px !important;
 }
+
+/* ── 侧栏菜单样式 ── */
+.sidebar-menu .ant-menu-item {
+  margin: 3px 10px !important;
+  border-radius: 8px !important;
+  height: 42px !important;
+  line-height: 42px !important;
+  padding-left: 20px !important;
+  width: auto !important;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+.sidebar-menu .ant-menu-item-selected {
+  box-shadow: 0 2px 8px rgba(212,168,83,0.15);
+}
+.sidebar-menu .ant-menu-item .anticon {
+  font-size: 16px !important;
+}
+.sidebar-menu.ant-menu-inline-collapsed .ant-menu-item {
+  padding-left: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-menu .ant-menu-title-content {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+/* ── 仪表盘统计卡片 ── */
+.stat-card {
+  transition: all 0.25s ease;
+  border: 1px solid transparent;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26, 58, 92, 0.10);
+  border-color: rgba(212, 168, 83, 0.25);
+}
+
+/* ── 侧栏折叠过渡 ── */
+.ant-layout-sider {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* ── 页面入场动画 ── */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageIn 0.35s ease-out;
+}
+
+/* ── 时间线组件 ── */
+.case-timeline .ant-timeline-item-tail {
+  border-color: #e2e8f0 !important;
+}
+.case-timeline .ant-timeline-item-head {
+  box-shadow: 0 0 0 2px rgba(26, 58, 92, 0.12);
+}
+
+/* ── 类案卡片悬浮 ── */
+.case-card:hover {
+  border-color: rgba(212, 168, 83, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(26, 58, 92, 0.08);
+}
+.case-card {
+  transition: all 0.2s ease;
+}
+
+/* ── 快捷操作按钮 ── */
+.quick-action-btn {
+  transition: all 0.25s ease;
+  border: 1px solid #e2e8f0;
+}
+.quick-action-btn:hover {
+  border-color: #1a3a5c;
+  background: linear-gradient(135deg, rgba(26,58,92,0.04) 0%, rgba(30,68,112,0.06) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 58, 92, 0.08);
+}

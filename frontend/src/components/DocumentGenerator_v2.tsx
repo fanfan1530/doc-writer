@@ -25,11 +25,17 @@ interface Props {
   onDocTypeChange: (t: string) => void;
   onInputChange: (text: string) => void;
   onResultChange: (r: GenerationResult | null, loading: boolean) => void;
+  /** 外部生成函数 —— 由父组件注入，用于后台持久化生成 */
+  onGenerateText?: (docType: string, inputText: string) => Promise<void>;
+  /** 外部生成状态 —— 用于恢复后台运行中的任务 */
+  externalGenerating?: boolean;
+  externalResult?: GenerationResult | null;
 }
 
 export default function DocumentGeneratorV2({
   docType, inputText,
   onDocTypeChange, onInputChange, onResultChange,
+  onGenerateText, externalGenerating, externalResult,
 }: Props) {
   const { message } = App.useApp();
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
@@ -45,10 +51,13 @@ export default function DocumentGeneratorV2({
     if (mode === 'manual') loadSchema(docType);
   }, [mode, docType, loadSchema]);
 
-  // 同步 Hook 内部状态到父组件 (父组件需要 result/generating 传给 DocumentPreview)
+  // 同步状态到父组件 —— 优先使用外部注入的状态（后台持久化），否则使用本地 Hook 状态
+  const effectiveGenerating = externalGenerating ?? generating;
+  const effectiveResult = externalResult ?? result;
+
   useEffect(() => {
-    onResultChange(result, generating);
-  }, [result, generating]); // eslint-disable-line react-hooks/exhaustive-deps
+    onResultChange(effectiveResult, effectiveGenerating);
+  }, [effectiveResult, effectiveGenerating]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDocTypeChange = (v: string) => {
     onDocTypeChange(v);
@@ -65,8 +74,12 @@ export default function DocumentGeneratorV2({
       message.warning('请输入案情描述');
       return;
     }
-    await generateFromText(docType, inputText);
-  }, [docType, inputText, generateFromText, message]);
+    if (onGenerateText) {
+      await onGenerateText(docType, inputText);
+    } else {
+      await generateFromText(docType, inputText);
+    }
+  }, [docType, inputText, generateFromText, onGenerateText, message]);
 
   const handleManualGenerate = useCallback(async (fields: Record<string, string>) => {
     await generateFromFields(docType, fields);
@@ -101,7 +114,7 @@ export default function DocumentGeneratorV2({
           <AiModePanel
             docType={docType}
             inputText={inputText}
-            generating={generating}
+            generating={effectiveGenerating}
             onInputChange={onInputChange}
             onGenerate={handleAiGenerate}
           />
@@ -110,20 +123,20 @@ export default function DocumentGeneratorV2({
             docType={docType}
             fieldSchema={fieldSchema}
             schemaLoading={schemaLoading}
-            generating={generating}
+            generating={effectiveGenerating}
             onGenerate={handleManualGenerate}
           />
         )}
       </div>
 
       <div className="flex-shrink-0">
-        {result?.suggested_laws && result.suggested_laws.length > 0 && (
+        {effectiveResult?.suggested_laws && effectiveResult.suggested_laws.length > 0 && (
           <>
             <Divider className="!my-2" />
             <div>
               <Text strong className="text-xs text-slate-400">推荐法条</Text>
               <Space wrap className="mt-1" size={[2, 2]}>
-                {result.suggested_laws.map((law, i) => (
+                {effectiveResult.suggested_laws.map((law, i) => (
                   <Tag key={i} color="blue" className="text-xs">
                     {law.length > 60 ? law.substring(0, 60) + '...' : law}
                   </Tag>
