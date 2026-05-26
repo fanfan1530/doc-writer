@@ -11,7 +11,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-from openai import AsyncOpenAI
+from app.core.crypto import decrypt_api_key, encrypt_api_key
+from app.core.dify_client import DifyClient
+from app.core.llm_client import LLMClient
 
 
 class ModelManager:
@@ -34,7 +36,7 @@ class ModelManager:
         )
         self._providers: list[dict[str, Any]] = []
         self._active_model_id: str = ""
-        self._client: AsyncOpenAI | None = None
+        self._client: LLMClient | None = None
         self._client_config_hash: str = ""
         self._load()
 
@@ -49,8 +51,66 @@ class ModelManager:
 
         self._providers = data.get("providers", [])
         self._active_model_id = data.get("active_model_id", "")
+
+        # 如果 JSON 无数据，尝试从数据库加载
+        if not self._providers:
+            self._try_load_from_db()
+
+        # 向后兼容：旧配置无 api_type 则默认 openai
+        for p in self._providers:
+            p.setdefault("api_type", "openai")
         if not self._active_model_id and self._providers:
             self._active_model_id = self._providers[0]["id"]
+
+        # 解密已存储的 API Key
+        self._decrypt_keys()
+
+    def _try_load_from_db(self) -> None:
+        """JSON 为空时尝试从数据库恢复配置。"""
+        try:
+            import asyncio
+            from app.infrastructure.database import AsyncSessionLocal
+            from app.infrastructure.models import ModelConfig
+            from sqlalchemy import select
+
+            async def _load():
+                async with AsyncSessionLocal() as db:
+                    result = await db.execute(select(ModelConfig))
+                    rows = result.scalars().all()
+                    if rows:
+                        self._providers = [
+                            {
+                                "id": r.id,
+                                "name": r.name,
+                                "provider": r.provider,
+                                "base_url": r.base_url,
+                                "model_name": r.model_name,
+                                "model_name_large": r.model_name_large,
+                                "api_key": r.api_key,
+                                "api_type": r.api_type,
+                                "requires_key": r.requires_key,
+                                "temperature": r.temperature,
+                                "max_tokens": r.max_tokens,
+                                "system_prompt": r.system_prompt,
+                            }
+                            for r in rows
+                        ]
+                        active = [r for r in rows if r.is_active]
+                        self._active_model_id = active[0].id if active else (
+                            self._providers[0]["id"] if self._providers else ""
+                        )
+                        self._decrypt_keys()
+
+            try:
+                loop = asyncio.get_running_loop()
+                # 在运行中的事件循环中，用 create_task
+                import concurrent.futures
+                future = asyncio.run_coroutine_threadsafe(_load(), loop)
+                future.result(timeout=5)
+            except RuntimeError:
+                asyncio.run(_load())
+        except Exception:
+            pass
 
     def _save(self) -> None:
         os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
@@ -58,12 +118,86 @@ class ModelManager:
             json.dump(
                 {
                     "active_model_id": self._active_model_id,
-                    "providers": self._providers,
+                    "providers": self._encrypted_providers(),
                 },
                 f,
                 ensure_ascii=False,
                 indent=2,
             )
+        # 异步同步到数据库（不阻塞主流程）
+        self._schedule_db_sync()
+
+    def _schedule_db_sync(self) -> None:
+        """尝试将当前配置同步到数据库（仅在事件循环运行时）。"""
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._sync_to_db())
+        except RuntimeError:
+            pass  # 无事件循环运行，跳过 DB 同步
+
+    async def _sync_to_db(self) -> None:
+        """将内存中的 providers 同步到数据库（API Key 加密存储）。"""
+        try:
+            from app.infrastructure.database import AsyncSessionLocal
+            from app.infrastructure.models import ModelConfig
+
+            async with AsyncSessionLocal() as db:
+                from sqlalchemy import select
+                result = await db.execute(select(ModelConfig.id))
+                existing_ids = set(result.scalars().all())
+
+                for p in self._providers:
+                    pid = p["id"]
+                    encrypted_key = encrypt_api_key(p.get("api_key", ""))
+                    if pid in existing_ids:
+                        stmt = select(ModelConfig).where(ModelConfig.id == pid)
+                        r = await db.execute(stmt)
+                        m = r.scalar_one_or_none()
+                        if m:
+                            m.name = p.get("name", "")
+                            m.provider = p.get("provider", "自定义")
+                            m.base_url = p.get("base_url", "")
+                            m.model_name = p.get("model_name", "")
+                            m.model_name_large = p.get("model_name_large", "")
+                            m.api_key = encrypted_key
+                            m.api_type = p.get("api_type", "openai")
+                            m.is_active = p["id"] == self._active_model_id
+                    else:
+                        db.add(ModelConfig(
+                            id=pid,
+                            name=p.get("name", ""),
+                            provider=p.get("provider", "自定义"),
+                            base_url=p.get("base_url", ""),
+                            model_name=p.get("model_name", ""),
+                            model_name_large=p.get("model_name_large", ""),
+                            api_key=encrypted_key,
+                            api_type=p.get("api_type", "openai"),
+                            is_active=p["id"] == self._active_model_id,
+                        ))
+                await db.commit()
+        except Exception:
+            pass  # DB 同步失败不影响主流程
+
+    # ── 加解密辅助 ────────────────────────────────────────
+
+    def _decrypt_keys(self) -> None:
+        """解密内存中所有 provider 的 API Key。"""
+        for p in self._providers:
+            key = p.get("api_key", "")
+            if key:
+                p["api_key"] = decrypt_api_key(key)
+
+    def _encrypted_providers(self) -> list[dict[str, Any]]:
+        """返回 API Key 已加密的 providers 列表（用于持久化）。"""
+        result: list[dict[str, Any]] = []
+        for p in self._providers:
+            item = dict(p)
+            key = item.get("api_key", "")
+            if key:
+                item["api_key"] = encrypt_api_key(key)
+            result.append(item)
+        return result
 
     # ── 查询方法 ─────────────────────────────────────────
 
@@ -106,23 +240,33 @@ class ModelManager:
 
     # ── 客户端获取 ───────────────────────────────────────
 
-    def get_client(self) -> "AsyncOpenAI":
-        """获取当前激活模型的 AsyncOpenAI 客户端。
+    def get_client(self) -> "LLMClient | DifyClient":
+        """获取当前激活模型的客户端。
 
         客户端会缓存，仅当模型配置发生变化时才重建。
         """
         config = self.get_active_config()
-        config_hash = f"{config.get('base_url', '')}|{config.get('api_key', '')}"
+        config_hash = f"{config.get('api_type', 'openai')}|{config.get('base_url', '')}|{config.get('api_key', '')}"
 
         if self._client is None or self._client_config_hash != config_hash:
             base_url = config.get("base_url", "")
             api_key = config.get("api_key", "")
+            api_type = config.get("api_type", "openai")
             if not base_url:
                 raise ValueError(f"模型 '{config.get('name', '')}' 未配置 base_url")
-            self._client = AsyncOpenAI(
-                base_url=base_url,
-                api_key=api_key or "sk-local",
-            )
+            if api_type == "dify":
+                self._client = DifyClient(
+                    base_url=base_url,
+                    api_key=api_key or "sk-local",
+                    timeout=90,
+                )
+            else:
+                self._client = LLMClient(
+                    api_type=api_type,
+                    base_url=base_url,
+                    api_key=api_key or "sk-local",
+                    timeout=90,
+                )
             self._client_config_hash = config_hash
 
         return self._client
@@ -186,6 +330,7 @@ class ModelManager:
                 "model_name": config.get("model_name", ""),
                 "model_name_large": config.get("model_name_large", ""),
                 "api_key": config.get("api_key", ""),
+                "api_type": config.get("api_type", "openai"),
                 "requires_key": config.get("requires_key", True),
                 "temperature": config.get("temperature", 0.1),
                 "max_tokens": config.get("max_tokens", 4096),
@@ -198,31 +343,110 @@ class ModelManager:
     # ── 测试连接 ─────────────────────────────────────────
 
     async def test_connection(self, config: dict[str, Any]) -> dict[str, Any]:
-        """测试模型连通性。"""
-        base_url = config.get("base_url", "")
+        """测试模型连通性（用标准库 urllib，不依赖 SDK/httpx，绕过代理）。"""
+        import json
+        import ssl
+        import urllib.request
+        import urllib.error
+
+        base_url = config.get("base_url", "").rstrip("/")
         api_key = config.get("api_key", "")
         model_name = config.get("model_name", "")
+        api_type = config.get("api_type", "openai")
 
         if not base_url:
             return {"success": False, "message": "未配置 Base URL"}
+
+        # Dify 工作流模式
+        if api_type == "dify":
+            url = base_url + "/workflows/run"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key or 'sk-local'}",
+            }
+            body = json.dumps({
+                "inputs": {"prompt": "Hi", "system_prompt": ""},
+                "response_mode": "blocking",
+                "user": "doc-writer",
+            }).encode("utf-8")
+
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+
+            req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+            try:
+                resp = urllib.request.urlopen(req, timeout=15, context=ssl_ctx)
+                data = json.loads(resp.read().decode("utf-8"))
+                wf_data = data.get("data", {})
+                if wf_data.get("status") == "succeeded":
+                    return {"success": True, "message": "Dify 工作流连接成功"}
+                elif wf_data.get("status") == "failed":
+                    err = wf_data.get("error", "工作流执行失败")
+                    return {"success": True, "message": f"Dify 连接成功（工作流提示: {err[:100]}）"}
+                return {"success": True, "message": "Dify 连接成功"}
+            except urllib.error.HTTPError as e:
+                if e.code == 401:
+                    return {"success": False, "message": "Dify API Key 无效"}
+                if e.code == 400 or e.code == 422:
+                    detail = e.read().decode("utf-8", errors="replace")[:200]
+                    return {"success": True, "message": f"Dify 连接成功（请检查工作流配置: {detail}）"}
+                detail = e.read().decode("utf-8", errors="replace")[:300]
+                return {"success": False, "message": f"HTTP {e.code}: {detail}"}
+            except urllib.error.URLError as e:
+                return {"success": False, "message": f"网络不通: {e.reason}"}
+            except Exception as e:
+                return {"success": False, "message": f"连接失败: {str(e)[:200]}"}
+
         if not model_name:
             return {"success": False, "message": "未配置模型名称"}
 
-        try:
-            client = AsyncOpenAI(
-                base_url=base_url,
-                api_key=api_key or "sk-local",
-                timeout=15,
-            )
-            response = await client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": "Hi"}],
-                max_tokens=5,
-                temperature=0,
-            )
-            return {
-                "success": True,
-                "message": f"连接成功 (模型: {response.model})",
+        # 构建请求
+        if api_type == "anthropic":
+            url = base_url + "/messages"
+            headers = {
+                "Content-Type": "application/json",
+                "x-api-key": api_key or "sk-local",
+                "anthropic-version": "2023-06-01",
             }
+            body = json.dumps({
+                "model": model_name,
+                "messages": [{"role": "user", "content": "Hi"}],
+                "max_tokens": 5,
+            }).encode("utf-8")
+        else:
+            url = base_url + "/chat/completions"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key or 'sk-local'}",
+            }
+            body = json.dumps({
+                "model": model_name,
+                "messages": [{"role": "user", "content": "Hi"}],
+                "max_tokens": 5,
+            }).encode("utf-8")
+
+        # SSL: 允许内网自签证书
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+
+        try:
+            resp = urllib.request.urlopen(
+                req, timeout=15, context=ssl_ctx,
+            )
+            data = json.loads(resp.read().decode("utf-8"))
+            if api_type == "anthropic":
+                model_used = data.get("model", "unknown")
+            else:
+                model_used = data.get("model", "unknown")
+            return {"success": True, "message": f"连接成功 (模型: {model_used})"}
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", errors="replace")[:300]
+            return {"success": False, "message": f"HTTP {e.code}: {detail}"}
+        except urllib.error.URLError as e:
+            return {"success": False, "message": f"网络不通: {e.reason}"}
         except Exception as e:
             return {"success": False, "message": f"连接失败: {str(e)[:200]}"}

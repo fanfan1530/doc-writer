@@ -69,3 +69,48 @@ body {
 .animate-dot-bounce {
   animation: dotBounce 1s ease-in-out infinite;
 }
+
+/* ── ChatPanel 消息气泡 ── */
+.chat-bubble-user {
+  background: linear-gradient(135deg, #1a3a5c 0%, #1e4470 100%);
+  color: #fff;
+  border-radius: 16px 16px 4px 16px;
+}
+.chat-bubble-assistant {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px 16px 16px 4px;
+}
+
+/* 光标闪烁 */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.cursor-blink {
+  animation: blink 0.8s step-end infinite;
+}
+
+/* 消息列表滚动条 */
+.chat-message-list::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-message-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-message-list::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+.chat-message-list::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* Ant Design Tabs 在右侧面板的微调 */
+.right-panel-tabs .ant-tabs-nav {
+  margin-bottom: 0 !important;
+}
+.right-panel-tabs .ant-tabs-tab {
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+}

@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# API Keys — 包含敏感信息，禁止提交
+backend/app/knowledge/models.json
+
 # Python
 __pycache__/
 *.py[cod]

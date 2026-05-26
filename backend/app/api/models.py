@@ -28,12 +28,14 @@ class ModelConfigRequest(BaseModel):
     model_name: str = Field(..., description="模型名")
     model_name_large: str = Field(default="", description="大模型名（用于质检）")
     api_key: str = Field(default="", description="API Key")
+    api_type: str = Field(default="openai", description="协议类型: openai, anthropic, 或 dify")
 
 
 class TestConnectionRequest(BaseModel):
     base_url: str = Field(..., description="API 端点地址")
     api_key: str = Field(default="", description="API Key")
     model_name: str = Field(..., description="模型名")
+    api_type: str = Field(default="openai", description="协议类型: openai, anthropic, 或 dify")
 
 
 # ── 端点 ─────────────────────────────────────────────────

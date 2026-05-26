@@ -26,6 +26,7 @@ export interface ModelProvider {
   base_url: string;
   model_name: string;
   model_name_large?: string;
+  api_type?: string;
   has_api_key: boolean;
   requires_key: boolean;
   is_active: boolean;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal, Form, Select, Input, Button, Space, App, Alert } from 'antd';
 import { ApiOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import client from '../api/client';
+import { PROVIDER_PRESETS } from '../constants/providers';
 import type { ModelProvider, ModelTestResult } from '../types';
 
 interface Props {
@@ -11,25 +12,13 @@ interface Props {
   onSaved: () => void;
 }
 
-const PROVIDER_PRESETS: Record<string, { base_url: string; model_name: string; model_name_large: string }> = {
-  'DeepSeek': {
-    base_url: 'https://api.deepseek.com/v1',
-    model_name: 'deepseek-v4-pro',
-    model_name_large: 'deepseek-v4-pro',
-  },
-  'MiniMax': {
-    base_url: 'https://api.minimax.chat/v1',
-    model_name: 'MiniMax-M2.7',
-    model_name_large: 'MiniMax-M2.7',
-  },
-};
-
 export default function ModelSettings({ open, onClose, models, onSaved }: Props) {
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<ModelTestResult | null>(null);
+  const watchedApiType = Form.useWatch('api_type', form);
 
   const handleModelSelect = (modelId: string) => {
     const model = models.find((m) => m.id === modelId);
@@ -42,6 +31,7 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
         model_name: model.model_name,
         model_name_large: model.model_name_large || '',
         api_key: '',
+        api_type: model.api_type || 'openai',
       });
       setTestResult(null);
     }
@@ -54,17 +44,19 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
         base_url: preset.base_url,
         model_name: preset.model_name,
         model_name_large: preset.model_name_large,
+        api_type: preset.api_type || 'openai',
       });
     } else {
-      form.setFieldsValue({ edit_id: '' });
+      form.setFieldsValue({ edit_id: '', api_type: 'openai' });
     }
     setTestResult(null);
   };
 
   const handleTest = async () => {
     const values = form.getFieldsValue();
-    if (!values.base_url || !values.model_name) {
-      message.warning('请先填写 API 地址和模型名称');
+    const isDify = values.api_type === 'dify';
+    if (!values.base_url || (!isDify && !values.model_name)) {
+      message.warning(isDify ? '请先填写 Dify API 地址' : '请先填写 API 地址和模型名称');
       return;
     }
     setTesting(true);
@@ -74,6 +66,7 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
         base_url: values.base_url,
         api_key: values.api_key || '',
         model_name: values.model_name,
+        api_type: values.api_type || 'openai',
       });
       setTestResult(data);
       if (data.success) {
@@ -100,6 +93,7 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
         model_name: values.model_name,
         model_name_large: values.model_name_large || '',
         api_key: values.api_key || '',
+        api_type: values.api_type || 'openai',
       });
       const action = data.is_new ? '添加' : '更新';
       message.success(`模型${action}成功`);
@@ -119,6 +113,7 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
     if (!open) {
       setTestResult(null);
       form.resetFields();
+      form.setFieldsValue({ api_type: 'openai' });
     }
   }, [open, form]);
 
@@ -129,7 +124,8 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
       onCancel={onClose}
       footer={null}
       width={520}
-      destroyOnClose
+      destroyOnHidden
+      forceRender
     >
       <Form form={form} layout="vertical" size="middle">
         <Form.Item label="选择已有模型" name="edit_id">
@@ -156,7 +152,24 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
             options={[
               { label: 'DeepSeek', value: 'DeepSeek' },
               { label: 'MiniMax', value: 'MiniMax' },
+              { label: 'Dify', value: 'Dify' },
               { label: '自定义', value: '自定义' },
+            ]}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="协议类型"
+          name="api_type"
+          rules={[{ required: true, message: '请选择协议类型' }]}
+          initialValue="openai"
+        >
+          <Select
+            placeholder="选择 API 协议"
+            options={[
+              { label: 'OpenAI 兼容', value: 'openai' },
+              { label: 'Anthropic', value: 'anthropic' },
+              { label: 'Dify 工作流', value: 'dify' },
             ]}
           />
         </Form.Item>
@@ -172,9 +185,14 @@ export default function ModelSettings({ open, onClose, models, onSaved }: Props)
         <Form.Item
           label="模型名称"
           name="model_name"
-          rules={[{ required: true, message: '请输入模型名称' }]}
+          rules={[
+            ({ getFieldValue }) => ({
+              required: getFieldValue('api_type') !== 'dify',
+              message: '请输入模型名称',
+            }),
+          ]}
         >
-          <Input placeholder="model-name" />
+          <Input placeholder={watchedApiType === 'dify' ? 'Dify 工作流无需填写' : 'model-name'} />
         </Form.Item>
 
         <Form.Item label="大模型名称（可选）" name="model_name_large">

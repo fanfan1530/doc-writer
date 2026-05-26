@@ -9,206 +9,14 @@ import logging
 import re
 from typing import Any
 
-from openai import AsyncOpenAI
+from app.core.llm_client import LLMClient
 
 from app.config import get_settings
 from app.core.rag_retriever import RAGRetriever
+from app.core.llm.prompts import EXTRACTION_PROMPT, POLISH_PROMPT, CASE_SUMMARY_PROMPT
+from app.utils.date_utils import normalize_chinese_datetime as _normalize_chinese_datetime, to_chinese_num
 
 logger = logging.getLogger(__name__)
-
-
-def _normalize_chinese_datetime(value: str) -> str:
-    """将 ISO 格式时间转换为中文格式：2026-05-22 11:20 → 2026年5月22日11时20分
-    也处理仅有日期的格式：2026-05-22 → 2026年5月22日
-    """
-    if not value:
-        return value
-    if "年" in value and "月" in value:
-        return value
-    # 带时间的完整 datetime：2026-05-22 11:20 或 2026-05-22T11:20
-    m = re.match(r"(\d{4})[/-](\d{1,2})[/-](\d{1,2})[\sT](\d{1,2}):(\d{2})", value)
-    if m:
-        y, mo, d, h, mi = m.groups()
-        return f"{y}年{int(mo)}月{int(d)}日{int(h)}时{int(mi)}分"
-    # 仅有日期：2026-05-22
-    m = re.match(r"(\d{4})[/-](\d{1,2})[/-](\d{1,2})$", value)
-    if m:
-        y, mo, d = m.groups()
-        return f"{y}年{int(mo)}月{int(d)}日"
-    return value
-
-
-EXTRACTION_PROMPT = """你是一名公安文书处理专家。请从以下民警输入的案情描述中抽取关键信息要素。
-
-## 输入内容
-{input_text}
-
-## 文书类型
-{doc_type}
-
-## 需要抽取的要素
-{element_schema}
-
-## 输出格式
-请严格按照 JSON 格式输出，不要遗漏任何要素：
-```json
-{{
-  "elements": {{
-    "field_key": "抽取的值或null",
-    ...
-  }},
-  "suggested_laws": ["建议引用的法条1", "建议引用的法条2"],
-  "case_nature": "案件性质/案由"
-}}
-```
-
-## 警务实战规则
-1. 仅从输入信息中提取，严禁编造数据
-2. 时间要素精确到分钟，格式必须为 YYYY-MM-DD HH:MM（如2026-05-21 20:00），严禁只输出日期。无精确时间的根据上下文合理推断
-3. 涉案人员信息（姓名、身份证号、住址、联系方式）必须完整提取，缺项填null
-4. 多人案件须提取全部涉案人员信息，以列表形式注明
-5. 金额、数量等数值保持原始表述，不得四舍五入
-6. 地点信息从大到小完整记录（省-市-区-详细地址）
-7. 特别注意：检查笔录类文书必须有见证人信息，辨认笔录必须有陪衬对象数量
-8. 交叉映射规则（输入来自询问/讯问笔录摘要时）：
-   - "办案单位"→ police_station（公安机关名称），如"藤县公安局埌南派出所"
-   - "询问时间"的起始时间 → inspection_time_start（检查开始时间）
-   - "询问时间"的结束时间 → inspection_time_end（检查结束时间）
-   - "询问地点"→ inspection_place（检查地点），如"XX派出所询问室"→"XX派出所检查室"
-   - "被询问人"→ inspection_target（被检查人姓名）
-   - "询问人"→ inspector_name（检查人姓名）
-   - "询问人所属单位"→ inspector_unit（检查人工作单位）
-   - "案由/案件性质"→ violation_type（违法性质）
-   - 检查笔录的过程和结果日期应使用询问时间对应的年月日
-9. 指认笔录交叉映射规则（输入来自询问/讯问笔录摘要时）：
-   - "办案单位"→ police_station（公安机关名称）
-   - "询问时间"的起始时间 → identification_time_start（指认开始时间）
-   - "询问时间"的结束时间 → identification_time_end（指认结束时间）
-   - "被询问人"→ identifier_name（指认人姓名）
-   - "被询问人性别"→ identifier_gender（指认人性别）
-   - "被询问人住址"→ identifier_address（指认人户籍地址）
-   - "询问人"→ investigator_name（侦查人员姓名）
-   - "询问人所属单位"→ investigator_unit（侦查人员单位）
-   - "案由/案件性质"→ violation_type（案件性质/案由）
-   - "案发地点"→ identification_place（指认地点）— 指认地点是被带到案发现场进行指认的实际位置，不是询问室
-   - "案发地点"→ case_location（案发地点）
-   - 指认对象应描述为"{案发日期}{案发地点}{案件性质}案发现场"
-   - 案发日期从询问时间中提取，案发地点从案情描述中提取
-   - case_description（案发经过简述）格式："伙同{同案犯姓名}在{案发地点}{违法行为简述}"，如"伙同聂材华、陈楚文、刘庆源在广西藤县埌南镇界垌村村委旁的工地内盗窃了电缆"
-   - identification_confirmation（指认确认内容）格式："{指认对象}就是其{违法行为简述}的{场所/物品}"，如"该地方就是其盗窃电缆的现场和工棚"
-10. 辨认笔录交叉映射规则（输入来自询问/讯问笔录摘要时）：
-   - "办案单位"→ police_station（公安机关名称）
-   - "询问时间"的起始时间 → identification_time_start（辨认开始时间）
-   - "询问时间"的结束时间 → identification_time_end（辨认结束时间）
-   - "询问地点"→ identification_place（辨认地点，默认为派出所询问室）
-   - "被询问人"→ identifier_name（辨认人姓名）
-   - "被询问人身份证号"→ identifier_id_number（辨认人证件号）
-   - "被询问人在本案中的角色"→ identifier_role（辨认人身份，如"涉案人员之一"/"被害人"/"证人"）
-   - "询问人"→ investigator_name（办案人员姓名）
-   - "询问人所属单位"→ investigator_unit（办案人员单位）
-   - "案由/案件性质"→ violation_type（案件性质/案由）
-   - "案发日期"→ case_date
-   - "案发地点"→ case_location
-   - identification_target（辨认对象）规则：
-     * 从输入中分析所有需要被辨认的涉案人员，按性别分为男、女两组
-     * 每组各12张照片，描述为："N组十二张不同{性别}正面彩色免冠照片组"
-     * 如有多组，用顿号连接，如："一组十二张不同男性正面彩色免冠照片组、二组十二张不同女性正面彩色免冠照片组"
-     * 如仅有一组，描述为："一组十二张不同{男性/女性}正面彩色免冠照片组"
-   - case_background（案件背景及辨认准备过程）格式：描述辨认人在本案中的角色、其陈述的案发经过（何时何地何人何事）、以及侦查人员准备了多少组辨认照片（每组12张）、告知了辨认人相关的权利义务
-   - identification_results（辨认结果）格式：将输入中出现的每一个涉案人员逐行列出，每行一条，格式为"辨认照片N组中（X）号照片的人就是{姓名}"，其中N为照片组号（男性为第一组，女性为第二组），X为照片编号（未知时填X）。不得合并、省略或使用"分别辨认出"等概括性表述。每组结果的末尾须注明"该组照片中的其他人员均不是本案涉案人员"。重要：只能列出输入文本中明确出现的姓名，输入中未出现的姓名一律不得添加。若某组照片对应性别在输入中无涉案人员姓名，则该组写"该组照片中未辨认出涉案人员"
-   - identification_operation、identification_conclusion、identification_confirmation 由系统自动生成
-"""
-
-POLISH_PROMPT = """你是一名公安文书撰写专家。请将以下事实描述润色为规范的公安法律文书语言。
-
-## 原始描述
-{raw_fact}
-
-## 文书类型
-{doc_type}
-
-## 要求
-1. 使用规范的公安法律文书用语，参照《公安机关刑事/行政法律文书式样》
-2. 保持"七何要素"完整——何人、何时、何地、何事、何因、何果、何证据
-3. 去除口语化表达、主观臆断词汇（如"可能""大概""好像""据说"等）
-4. 保持事实准确，不添加、删减原始描述中没有的信息
-5. 时间、地点、人名、身份证号、金额等关键信息不得改动
-6. 行为动作使用确定性法律用语，如"击打"替代"打"，"口角"替代"吵架"
-7. 多人多层级关系用"二人以上""多次"等明确表述
-8. 涉及伤情的使用客观描述（部位、大小、颜色、形态），不主观定性
-9. 证据列项标准化：编号+证据种类+来源+证明内容
-10. 检查、搜查类过程的描述须按时间顺序，逐项记录
-
-## 输出
-直接输出润色后的事实描述段落，不要添加任何说明。
-"""
-
-CASE_SUMMARY_PROMPT = """你是一名公安案件分析专家。你的任务是对以下警务文书原文进行整理，输出一份结构化的案件摘要。
-
-## 重要：你必须严格基于下面的「原文」来写摘要。原文是你唯一的事实来源。不得添加原文中没有的任何信息。
-
-================================================================
-                     ▼▼▼ 原 文 开 始 ▼▼▼
-================================================================
-
-{raw_text}
-
-================================================================
-                     ▲▲▲ 原 文 结 束 ▲▲▲
-================================================================
-
-## 核心原则 —— 优先级最高，违反即为严重错误
-
-**严禁编造任何信息。**
-- 原文中没有的信息，一律标注"不详"或"原文未记载"，绝对不得凭空补充
-- 原文中不完整的信息（如只有姓没有名、只说"30多岁"没给准确年龄），如实转述，不得补全
-- 原文中未明确的时间，不得"推断"，直接写"不详"
-- 原文中没有的证据、物品、金额，不得列出
-- 原文中未出现的涉案人员，不得添加
-- 不要补充任何"合理推测""常见情况""惯例做法"
-
-**如果你在摘要中写了原文没有的信息，那就是一个严重的错误。**
-
-## 输出结构
-
-### 一、案件基本信息
-- 案发时间：原文中明确出现的事件发生时间（无则写"不详"）
-- 案发地点：原文中明确出现的事件发生地点（无则写"不详"）
-- 案件性质/案由：原文中涉及的违法行为或纠纷性质（无则写"不详"）
-
-### 二、办案信息（询问/讯问笔录类文书必须提取此项）
-- 办案单位：从"询问地点""讯问地点""办案单位""公安机关名称"或询问人/记录人所属单位中提取。例如"XX路派出所"或"XX县公安局XX派出所"。原文无明确记载则写"不详"
-- 询问/讯问时间：原文中"询问时间""讯问时间"栏的内容，完整保留起止时间。例如"2026年5月20日14时30分至2026年5月20日16时00分"。无则写"不详"
-- 询问/讯问地点：原文中"询问地点""讯问地点"栏的完整内容。无则写"不详"
-- 询问人/讯问人：原文中记录的办案民警姓名及警号。无则写"不详"
-- 记录人：原文中记录的记录人姓名及警号。无则写"不详"
-
-### 三、涉案人员
-- 逐人列出：姓名、性别、年龄、身份证号、住址、联系方式、在本案中的角色
-- 以上字段，原文中有的就填，没有的就写"不详"
-- 多人的内容不可合并或省略
-
-### 四、案件事实经过
-- 严格按原文时间顺序叙述
-- 只写原文中明确记载的行为和事件
-- 去掉程序性表述（告知权利义务、出示证件、告知回避权等）
-- 去掉口语语气词和重复表述
-- 行为动作可使用法律用语规范表述，但不得改变含义
-
-### 五、证据情况
-- 仅列举原文中明确提到的证据种类及来源
-- 原文未提及证据则写"原文未记载"
-
-### 六、涉案金额/物品
-- 仅列举原文中明确的金额或物品名称、数量
-- 原文未提及则写"原文未记载"
-
-## 输出要求
-- 使用自然流畅的案件叙述段落，但叙事必须完全忠实于原文
-- 每项信息必须完整，不得省略原文中明确记载的内容
-- 字数控制在300-1000字
-- 直接输出案件摘要，不要添加任何解释说明
-"""
 
 
 class DocumentGenerator:
@@ -218,10 +26,11 @@ class DocumentGenerator:
                  model_manager: "ModelManager | None" = None):
         self._model_manager = model_manager
         if model_manager is not None:
-            self._client: AsyncOpenAI | None = None  # lazy init via _get_client()
+            self._client: LLMClient | None = None  # lazy init via _get_client()
         else:
             settings = get_settings()
-            self._client = AsyncOpenAI(
+            self._client = LLMClient(
+                api_type="openai",
                 base_url=settings.llm_base_url,
                 api_key=settings.llm_api_key.get_secret_value() or "sk-local",
             )
@@ -229,7 +38,7 @@ class DocumentGenerator:
         self._model_small = None
         self._retriever = retriever or RAGRetriever()
 
-    def _get_client(self) -> AsyncOpenAI:
+    def _get_client(self) -> LLMClient:
         """获取当前模型客户端（支持运行时切换）。"""
         if self._model_manager is not None:
             return self._model_manager.get_client()
@@ -283,14 +92,13 @@ class DocumentGenerator:
         last_error = ""
         for attempt in range(3):
             try:
-                response = await self._get_client().chat.completions.create(
+                text = await self._get_client().chat(
                     model=self._get_model_name(),
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     timeout=90,
-                )
-                text = response.choices[0].message.content or "{}"
+                ) or "{}"
                 return self._parse_json(text)
             except Exception as e:
                 last_error = str(e)[:200]
@@ -315,14 +123,14 @@ class DocumentGenerator:
                 if sys_prompt:
                     messages.append({"role": "system", "content": sys_prompt})
                 messages.append({"role": "user", "content": POLISH_PROMPT.replace("{raw_fact}", raw_fact).replace("{doc_type}", doc_type or "公安法律文书")})
-                response = await self._get_client().chat.completions.create(
+                result = await self._get_client().chat(
                     model=self._get_model_name(),
                     messages=messages,
                     temperature=temperature,
                     max_tokens=2048,
                     timeout=90,
                 )
-                return response.choices[0].message.content or raw_fact
+                return result or raw_fact
             except Exception as e:
                 logger.warning(
                     "事实润色失败 (第%d次): %s", attempt + 1, str(e)[:200],
@@ -581,30 +389,9 @@ class DocumentGenerator:
             elements["penalty_decision_date"] = _normalize_chinese_datetime(str(elements.get("penalty_decision_date", "") or ""))
 
             # 落款日期：转为中文大写数字格式（二○二六年五月十五日）
-            chinese_digits = {"0": "○", "1": "一", "2": "二", "3": "三", "4": "四",
-                              "5": "五", "6": "六", "7": "七", "8": "八", "9": "九"}
-            def _to_chinese_num(n: int) -> str:
-                if n <= 9:
-                    return chinese_digits[str(n)]
-                elif n == 10:
-                    return "十"
-                elif n < 20:
-                    return "十" + chinese_digits[str(n % 10)]
-                elif n % 10 == 0:
-                    return chinese_digits[str(n // 10)] + "十"
-                else:
-                    return chinese_digits[str(n // 10)] + "十" + chinese_digits[str(n % 10)]
-
+            from app.utils.date_utils import to_stamp_date
             raw_date = str(elements.get("penalty_decision_date", ""))
-            stamp_match = re.match(r"(\d{4})年(\d{1,2})月(\d{1,2})日", raw_date)
-            if stamp_match:
-                y, m, d = stamp_match.groups()
-                cy = "".join(chinese_digits.get(c, c) for c in y)
-                cm = _to_chinese_num(int(m))
-                cd = _to_chinese_num(int(d))
-                elements["stamp_date"] = f"{cy}年{cm}月{cd}日"
-            else:
-                elements["stamp_date"] = raw_date
+            elements["stamp_date"] = to_stamp_date(raw_date) if raw_date else raw_date
 
             # 默认值
             for fk in ["work_unit", "criminal_record"]:
@@ -843,14 +630,13 @@ class DocumentGenerator:
         last_error = ""
         for attempt in range(3):
             try:
-                response = await self._get_client().chat.completions.create(
+                content = (await self._get_client().chat(
                     model=self._get_model_name(),
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     timeout=90,
-                )
-                content = (response.choices[0].message.content or "").strip()
+                ) or "").strip()
                 if not content:
                     return {"summary": "", "warning": "AI 模型未能从文件中提取有效案情信息，请手动输入或更换模型后重试"}
                 return {"summary": content, "warning": ""}
@@ -887,13 +673,13 @@ class DocumentGenerator:
         """
         names: list[str] = []
         # 匹配 "伙同/与/及/和 X、Y、Z" 模式，直到遇到 "等" 或非名词语素
-        pattern = r'(?:伙同|与|及|和|包括)\s*([一-龥]{2,4}(?:[、，][一-龥]{2,4})*)'
+        pattern = r'(?:伙同|与|及|和|包括)\s*([一-龥]{2,3}(?:[、，][一-龥]{2,3})*)'
         for m in re.finditer(pattern, input_text):
             name_str = m.group(1)
             for part in re.split(r'[、，]', name_str):
                 part = part.strip()
                 # 去除可能尾随的"等"字
-                part = re.sub(r'[等]+$', '', part)
+                part = re.sub(r'等.*$', '', part)
                 # 只接受2-3字的纯中文（中国姓名通常2-3字）
                 if re.match(r'^[一-龥]{2,3}$', part):
                     # 排除非姓名语素

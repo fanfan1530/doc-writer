@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Lint (ruff)
+        run: |
+          pip install ruff
+          ruff check app/ --ignore E501,F841 || true
+
+      - name: Type check (mypy)
+        run: |
+          pip install mypy || true
+          mypy app/ --ignore-missing-imports --no-error-summary || true
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+
+  docker-build:
+    needs: backend-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t doc-writer:latest ./backend
+
+      - name: Verify container starts
+        run: |
+          docker run -d --name doc-writer-test -p 8090:8090 doc-writer:latest
+          sleep 5
+          curl -f http://localhost:8090/api/health || exit 1
+          docker stop doc-writer-test

@@ -1,6 +1,6 @@
 """
 RAG 知识检索 —— 关键词检索 + 模板匹配。
-当前为演示版本使用 JSON 文件知识库 + 简易关键词打分。
+优先从 DB 读取知识库，DB 为空时回退到 JSON 文件。
 生产环境替换为 Milvus/pgvector + BM25 + Cross-encoder 重排序。
 """
 
@@ -21,9 +21,25 @@ class RAGRetriever:
         self._laws: list[dict] = []
         self._templates: list[dict] = []
         self._error_patterns: list[dict] = []
+        self._vector_ready = False
         self._load_knowledge()
 
     def _load_knowledge(self):
+        """优先从 DB 加载，DB 为空时回退到 JSON 文件。"""
+        if self._try_load_from_db():
+            self._build_index()
+            return
+        self._load_from_json()
+        self._build_index()
+
+    def _build_index(self):
+        try:
+            from app.core.vector_rag import build_index
+            self._vector_ready = build_index(self._laws, self._templates)
+        except Exception:
+            self._vector_ready = False
+
+    def _load_from_json(self):
         for name, target in [
             ("laws.json", "_laws"),
             ("templates.json", "_templates"),
@@ -36,12 +52,86 @@ class RAGRetriever:
                 except (json.JSONDecodeError, IOError):
                     pass
 
+    def _try_load_from_db(self) -> bool:
+        """尝试从 DB 加载知识库，成功返回 True。"""
+        try:
+            import asyncio
+            from app.infrastructure.database import AsyncSessionLocal
+            from app.infrastructure.models import DocumentTemplate, Law, ErrorPattern
+            from sqlalchemy import select, func
+
+            async def _load():
+                async with AsyncSessionLocal() as db:
+                    # 检查是否有数据
+                    count = (await db.execute(select(func.count()).select_from(DocumentTemplate))).scalar()
+                    if count == 0:
+                        return False
+
+                    # 加载模板
+                    result = await db.execute(select(DocumentTemplate).where(DocumentTemplate.is_active == True))
+                    self._templates = [r.to_api_dict() for r in result.scalars().all()]
+
+                    # 加载法条
+                    result = await db.execute(select(Law))
+                    self._laws = [
+                        {
+                            "law_name": r.law_name,
+                            "article_number": r.article_number,
+                            "content": r.content,
+                            "penalty_range": r.penalty_range,
+                            "keywords": r.keywords,
+                            "applicable_doc_types": r.applicable_doc_types,
+                        }
+                        for r in result.scalars().all()
+                    ]
+
+                    # 加载错误模式
+                    result = await db.execute(select(ErrorPattern))
+                    self._error_patterns = [
+                        {
+                            "error_description": r.error_description,
+                            "incorrect_example": r.incorrect_example,
+                            "correct_example": r.correct_example,
+                            "applicable_doc_types": r.applicable_doc_types,
+                        }
+                        for r in result.scalars().all()
+                    ]
+                    return True
+
+            try:
+                loop = asyncio.get_running_loop()
+                import concurrent.futures
+                future = asyncio.run_coroutine_threadsafe(_load(), loop)
+                future.result(timeout=5)
+            except RuntimeError:
+                asyncio.run(_load())
+            return bool(self._templates or self._laws)
+        except Exception:
+            return False
+
     def retrieve_laws(self, query: str, doc_type: str = "") -> str:
-        results = self._keyword_search(self._laws, query, doc_type, top_k=5)
+        # 优先向量检索，回退关键词
+        results: list[dict] = []
+        if self._vector_ready and query.strip():
+            try:
+                from app.core.vector_rag import vector_search
+                vector_results = vector_search(query, n_results=8)
+                # 仅保留法条结果并映射回原始格式
+                law_ids = {vr["id"] for vr in vector_results if vr["type"] == "law"}
+                if law_ids:
+                    for i, law in enumerate(self._laws):
+                        if f"law-{i}" in law_ids:
+                            results.append(law)
+            except Exception:
+                pass
+
+        if not results:
+            results = self._keyword_search(self._laws, query, doc_type, top_k=5)
+
         if not results:
             return "未找到相关法条。"
         lines = []
-        for r in results:
+        for r in results[:5]:
             lines.append(
                 f"【{r.get('law_name', '')}】第{r.get('article_number', '')}条: "
                 f"{r.get('content', '')}" +
