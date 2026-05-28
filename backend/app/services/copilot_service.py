@@ -137,39 +137,89 @@ class CopilotService:
             yield self._sse("done", {"elapsed_ms": int((time.time() - t0) * 1000)})
             return
 
-        # 解析工具调用
-        tool_calls = self._parse_tool_calls(tool_response)
+        # 多轮工具调用循环（最多 3 轮，让 LLM 可以基于工具结果继续调用其他工具）
+        MAX_TOOL_ROUNDS = 3
+        all_tool_calls: list[dict] = []
 
-        if tool_calls:
-            # 收集工具结果，用于构建最终回复
-            tool_results_text = ""
+        for round_num in range(MAX_TOOL_ROUNDS):
+            tool_calls = self._parse_tool_calls(tool_response)
+
+            if not tool_calls:
+                break
+
+            all_tool_calls.extend(tool_calls)
+            tool_names = [tc["name"] for tc in tool_calls]
+            yield self._sse("thinking", {
+                "message": f"正在{'并行' if len(tool_calls) > 1 else ''}调用: {', '.join(tool_names)}..."
+                + (f" (第{round_num + 1}轮)" if round_num > 0 else ""),
+            })
+
+            # 通知前端所有工具调用
             for tc in tool_calls:
+                yield self._sse("tool_call", {"tool": tc["name"], "args": tc.get("arguments", {})})
+
+            # 并行执行
+            async def _exec_one(tc: dict) -> tuple:
+                return tc["name"], await self._tools.execute(tc["name"], tc.get("arguments", {}))
+
+            results = await asyncio.gather(
+                *[_exec_one(tc) for tc in tool_calls], return_exceptions=True,
+            )
+
+            # 按序 yield 结果并构建 tool role messages
+            tool_msgs: list[dict] = []
+            for tc, res in zip(tool_calls, results):
                 tool_name = tc["name"]
-                tool_args = tc.get("arguments", {})
+                if isinstance(res, Exception):
+                    err_msg = f"{tool_name} 执行失败: {str(res)}"
+                    logger.warning("工具执行异常: %s", err_msg[:100])
+                    yield self._sse("tool_result", {"tool": tool_name, "result": err_msg[:500]})
+                    tool_msgs.append({"role": "tool", "tool_call_id": tc.get("id", tool_name),
+                                      "content": err_msg})
+                    continue
 
-                yield self._sse("thinking", {"message": f"正在调用: {tool_name}..."})
-                yield self._sse("tool_call", {"tool": tool_name, "args": tool_args})
-
-                tool_result = await self._tools.execute(tool_name, tool_args)
-                # polish_document 完整返回，其他工具截断
+                tool_name, tool_result = res
                 display_result = tool_result if tool_name == "polish_document" else tool_result[:500]
                 yield self._sse("tool_result", {"tool": tool_name, "result": display_result})
 
-                # polish_document 完成后通知前端替换文书
                 if tool_name == "polish_document":
                     yield self._sse("doc_modified", {"content": tool_result})
 
-                # 将工具结果整理为用户消息，避免 tool role 兼容性问题
-                tool_results_text += f"\n\n[工具 {tool_name} 的返回结果]:\n{tool_result}"
+                tool_msgs.append({"role": "tool", "tool_call_id": tc.get("id", tool_name),
+                                  "content": tool_result})
 
-            # 工具执行完毕后，将结果作为用户消息追加
+            # 将工具调用和结果以 assistent+tool 角色对追加到消息历史
             messages.append({
-                "role": "user",
-                "content": f"以下是工具调用的结果:{tool_results_text}\n\n请根据以上工具返回的信息，回答用户的问题。",
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {"id": tc.get("id", f"call_{i}"), "type": "function",
+                     "function": {"name": tc["name"], "arguments": json.dumps(tc.get("arguments", {}), ensure_ascii=False)}}
+                    for i, tc in enumerate(tool_calls)
+                ],
             })
+            messages.extend(tool_msgs)
 
-            # 工具执行完毕后，生成最终回复
-            yield self._sse("thinking", {"message": "正在整理回复..."})
+            # 如果不是最后一轮，让 LLM 决定是否需要继续调用工具
+            if round_num < MAX_TOOL_ROUNDS - 1:
+                yield self._sse("thinking", {"message": "正在评估是否需要继续调用工具..."})
+                try:
+                    tool_response = await client.chat(
+                        model=model, messages=messages,
+                        temperature=0.1, max_tokens=512,
+                        tools=TOOL_DEFINITIONS, tool_choice="auto", timeout=60,
+                    )
+                    # 检查是否还有工具调用，否则退出循环
+                    next_tool_calls = self._parse_tool_calls(tool_response)
+                    if not next_tool_calls:
+                        break
+                    tool_calls = next_tool_calls  # 继续循环
+                except Exception as e:
+                    logger.warning("多轮工具检查失败: %s", str(e)[:100])
+                    break
+
+        # 工具执行完毕后，生成最终回复
+        yield self._sse("thinking", {"message": "正在整理回复..."})
 
         # 流式生成最终回复 (简洁模式限 1024 tokens，详细模式 4096)
         try:

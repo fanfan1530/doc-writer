@@ -1,19 +1,21 @@
-/** 历史文书页面 —— 浏览、搜索、查看过往生成的所有文书 */
-import { useEffect, useState, useCallback } from 'react';
+/** 历史文书页面 —— 浏览、搜索、查看过往生成的所有文书（服务端排序 + URL 状态持久化） */
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card, Table, Tag, Input, Select, Button, Statistic, Row, Col,
-  Skeleton, Empty, App,
+  Skeleton, Empty, App, Space, Tooltip,
 } from 'antd';
+import type { TableProps } from 'antd';
 import {
   FileTextOutlined, ClockCircleOutlined, CheckCircleOutlined,
-  SearchOutlined, EyeOutlined, CopyOutlined, ExportOutlined,
+  SearchOutlined, EyeOutlined, CopyOutlined,
   ReloadOutlined, ClearOutlined, DownloadOutlined,
+  SortAscendingOutlined,
 } from '@ant-design/icons';
 import client from '../../api/client';
 import { DOC_TYPES } from '../../constants/docTypes';
+import { useHistoryStats } from '../../hooks/useHistoryStats';
 import HistoryDrawer from './HistoryDrawer';
-import type { ColumnsType } from 'antd/es/table';
 
 interface HistoryItem {
   id: number;
@@ -27,6 +29,8 @@ interface HistoryItem {
   created_at: string;
 }
 
+type SortField = 'created_at' | 'doc_type' | 'latency_ms' | 'id';
+
 export default function HistoryPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -35,29 +39,38 @@ export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, recent: 0, types: 0 });
-  const [statsLoading, setStatsLoading] = useState(true);
+  const { stats, loading: statsLoading } = useHistoryStats();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // 筛选状态 —— 从 URL 参数初始化
+  // 筛选和排序状态 —— 从 URL 参数初始化
   const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
   const [docType, setDocType] = useState(searchParams.get('doc_type') || '');
   const [activeFilter, setActiveFilter] = useState(searchParams.get('filter') || '');
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
+  const [sortField, setSortField] = useState<SortField>(
+    (searchParams.get('sort') as SortField) || 'created_at',
+  );
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
+    (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+  );
   const pageSize = 15;
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const fetchHistory = useCallback(async (p: number, kw: string, dt: string, filter: string) => {
+  const fetchHistory = useCallback(async (
+    p: number, kw: string, dt: string, filter: string,
+    sf: SortField, so: string,
+  ) => {
     setLoading(true);
     try {
       const params: Record<string, string | number> = {
         limit: pageSize,
         offset: (p - 1) * pageSize,
+        sort_by: sf,
+        sort_order: so,
       };
       if (kw) params.keyword = kw;
       if (dt) params.doc_type = dt;
-
-      // 根据 filter 构造时间范围
       if (filter === 'recent') {
         const d = new Date(Date.now() - 7 * 24 * 3600 * 1000);
         params.since = d.toISOString();
@@ -67,55 +80,48 @@ export default function HistoryPage() {
       setItems(data.history || []);
       setTotal(data.total || 0);
     } catch {
-      // ignore
+      /* ignore */
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const fetchStats = useCallback(async () => {
-    setStatsLoading(true);
-    try {
-      const { data } = await client.get('/generation/history', { params: { limit: 200 } });
-      const all: HistoryItem[] = data.history || [];
-      const types = new Set(all.map((h) => h.doc_type));
-      setStats({
-        total: data.total || all.length,
-        recent: all.filter((h) => {
-          const d = new Date(h.created_at);
-          return (Date.now() - d.getTime()) < 7 * 24 * 3600 * 1000;
-        }).length,
-        types: types.size,
-      });
-    } catch { /* ignore */ } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    fetchHistory(page, keyword, docType, activeFilter, sortField, sortOrder);
+  }, [page, keyword, docType, activeFilter, sortField, sortOrder, fetchHistory]);
 
+  // 同步筛选到 URL（debounced for keyword）
   useEffect(() => {
-    fetchHistory(page, keyword, docType, activeFilter);
-  }, [page, keyword, docType, activeFilter, fetchHistory]);
-
-  // 同步筛选到 URL
-  useEffect(() => {
-    const params: Record<string, string> = {};
-    if (activeFilter) params.filter = activeFilter;
-    if (docType) params.doc_type = docType;
-    if (keyword) params.keyword = keyword;
-    if (page > 1) params.page = String(page);
-    setSearchParams(params, { replace: true });
-  }, [activeFilter, docType, keyword, page, setSearchParams]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const params: Record<string, string> = {};
+      if (activeFilter) params.filter = activeFilter;
+      if (docType) params.doc_type = docType;
+      if (keyword) params.keyword = keyword;
+      if (page > 1) params.page = String(page);
+      if (sortField !== 'created_at') params.sort = sortField;
+      if (sortOrder !== 'desc') params.order = sortOrder;
+      setSearchParams(params, { replace: true });
+    }, 200);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [activeFilter, docType, keyword, page, sortField, sortOrder, setSearchParams]);
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter((prev) => (prev === filter ? '' : filter));
     setPage(1);
   };
 
-  const handleView = async (id: number) => {
+  const handleSortChange = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+    setPage(1);
+  };
+
+  const handleView = (id: number) => {
     setSelectedId(id);
     setDrawerOpen(true);
   };
@@ -140,8 +146,8 @@ export default function HistoryPage() {
       a.click();
       URL.revokeObjectURL(url);
       message.success('下载成功');
-    } catch {
-      message.error('下载失败');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '下载失败');
     }
   };
 
@@ -149,20 +155,40 @@ export default function HistoryPage() {
     setKeyword('');
     setDocType('');
     setActiveFilter('');
+    setSortField('created_at');
+    setSortOrder('desc');
     setPage(1);
   };
 
-  const columns: ColumnsType<HistoryItem> = [
+  // 服务端排序的列定义
+  const sortableHeader = (label: string, field: SortField) => {
+    const active = sortField === field;
+    return (
+      <button
+        onClick={() => handleSortChange(field)}
+        className="flex items-center gap-1 hover:text-police-600 transition-colors"
+      >
+        {label}
+        <SortAscendingOutlined
+          className={`text-[10px] transition-all ${
+            active ? 'text-police-500' : 'text-slate-300'
+          } ${active && sortOrder === 'asc' ? 'rotate-180' : ''}`}
+        />
+      </button>
+    );
+  };
+
+  const columns: TableProps<HistoryItem>['columns'] = [
     {
-      title: 'ID',
+      title: sortableHeader('ID', 'id'),
       dataIndex: 'id',
-      width: 60,
+      width: 70,
       render: (id: number) => <span className="text-slate-400 text-xs">#{id}</span>,
     },
     {
-      title: '文书类型',
+      title: sortableHeader('文书类型', 'doc_type'),
       dataIndex: 'doc_type',
-      width: 140,
+      width: 150,
       render: (t: string) => (
         <Tag color={
           t.includes('行政') ? 'blue' :
@@ -175,47 +201,67 @@ export default function HistoryPage() {
       title: '输入摘要',
       dataIndex: 'input_text',
       ellipsis: true,
-      render: (text: string) => (
-        <span className="text-slate-600 text-sm">{text || <span className="text-slate-300">无输入</span>}</span>
+      render: (text: string, item) => (
+        <div className="min-w-0">
+          <div className="text-slate-700 text-sm truncate" title={formatCaseSummary(text)}>
+            {formatCaseSummary(text)}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+            {item.model_used || '未记录模型'}
+          </div>
+        </div>
       ),
     },
     {
-      title: '生成时间',
+      title: '状态',
+      width: 80,
+      render: (_, item) => (
+        item.output_content
+          ? <Tag color="success" className="m-0">成功</Tag>
+          : <Tag color="warning" className="m-0">空内容</Tag>
+      ),
+    },
+    {
+      title: sortableHeader('生成时间', 'created_at'),
       dataIndex: 'created_at',
-      width: 170,
+      width: 175,
       render: (t: string) => {
         if (!t) return '-';
         const d = new Date(t);
         return <span className="text-slate-500 text-sm">{d.toLocaleString('zh-CN')}</span>;
       },
-      defaultSortOrder: 'descend',
-      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     },
     {
-      title: '耗时',
+      title: sortableHeader('耗时', 'latency_ms'),
       dataIndex: 'latency_ms',
-      width: 80,
+      width: 90,
       render: (ms: number) => ms ? <span className="text-slate-400 text-xs">{ms}ms</span> : '-',
     },
     {
       title: '操作',
-      width: 200,
+      width: 170,
       render: (_, item) => (
-        <div className="flex gap-1">
+        <Space size={0}>
           <Button type="link" size="small" icon={<EyeOutlined />}
             onClick={() => handleView(item.id)}>查看</Button>
-          <Button type="link" size="small" icon={<DownloadOutlined />}
-            onClick={() => handleDownload(item)} title="下载 Word" />
-          <Button type="link" size="small" icon={<CopyOutlined />}
-            onClick={() => handleCopy(item.output_content)} title="复制内容" />
-          <Button type="link" size="small" icon={<ReloadOutlined />}
-            onClick={() => handleReuse(item)} title="基于该案由重新生成" />
-        </div>
+          <Tooltip title="下载 Word">
+            <Button type="link" size="small" icon={<DownloadOutlined />}
+              onClick={() => handleDownload(item)} />
+          </Tooltip>
+          <Tooltip title="复制内容">
+            <Button type="link" size="small" icon={<CopyOutlined />}
+              onClick={() => handleCopy(item.output_content)} />
+          </Tooltip>
+          <Tooltip title="带入文书生成页重新生成">
+            <Button type="link" size="small" icon={<ReloadOutlined />}
+              onClick={() => handleReuse(item)} />
+          </Tooltip>
+        </Space>
       ),
     },
   ];
 
-  const hasFilters = keyword || docType || activeFilter;
+  const hasFilters = keyword || docType || activeFilter || sortField !== 'created_at' || sortOrder !== 'desc';
 
   return (
     <div className="p-5 page-enter max-w-[1400px] mx-auto">
@@ -235,8 +281,8 @@ export default function HistoryPage() {
         <Row gutter={[16, 16]} className="mb-4">
           <Col xs={24} sm={8}>
             <Card
-              className={`stat-card rounded-xl shadow-sm border-0 transition-all ${activeFilter === '' && !docType ? 'ring-2 ring-police-200' : 'cursor-pointer hover:shadow-md'}`}
-              onClick={() => { setActiveFilter(''); setDocType(''); setKeyword(''); setPage(1); }}
+              className={`stat-card rounded-xl shadow-sm border-0 transition-all ${!hasFilters ? 'ring-2 ring-police-200' : 'cursor-pointer hover:shadow-md'}`}
+              onClick={handleClearFilters}
             >
               <Statistic
                 title={<span className="text-xs text-slate-500">历史文书总数</span>}
@@ -260,9 +306,7 @@ export default function HistoryPage() {
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card
-              className="stat-card rounded-xl shadow-sm border-0 cursor-pointer hover:shadow-md transition-all"
-            >
+            <Card className="stat-card rounded-xl shadow-sm border-0 cursor-default">
               <Statistic
                 title={<span className="text-xs text-slate-500">涵盖文书类型</span>}
                 value={stats.types}
@@ -295,8 +339,20 @@ export default function HistoryPage() {
             allowClear
             options={DOC_TYPES.map((t) => ({ label: t, value: t }))}
           />
+          {/* 活跃排序指示 */}
+          {sortField !== 'created_at' && (
+            <Tag color="purple" closable onClose={() => { setSortField('created_at'); setSortOrder('desc'); }}>
+              排序: {sortField === 'doc_type' ? '文书类型' : sortField === 'latency_ms' ? '耗时' : 'ID'}
+              ({sortOrder === 'asc' ? '升序' : '降序'})
+            </Tag>
+          )}
+          {activeFilter === 'recent' && (
+            <Tag color="blue" closable onClose={() => { setActiveFilter(''); setPage(1); }}>
+              近7天
+            </Tag>
+          )}
           {hasFilters && (
-            <Button size="small" icon={<ClearOutlined />} onClick={handleClearFilters}>清除筛选</Button>
+            <Button size="small" icon={<ClearOutlined />} onClick={handleClearFilters}>重置</Button>
           )}
           <span className="text-xs text-slate-400 ml-auto">
             共 {total} 条记录
@@ -312,6 +368,7 @@ export default function HistoryPage() {
           rowKey="id"
           loading={loading}
           size="middle"
+          showSorterTooltip={false}
           pagination={{
             current: page,
             pageSize,
@@ -338,4 +395,68 @@ export default function HistoryPage() {
       />
     </div>
   );
+}
+
+function formatCaseSummary(text: string): string {
+  if (!text || !text.trim()) return '无案情输入';
+
+  const raw = text.trim();
+  try {
+    const parsed = JSON.parse(raw);
+    const flat = flattenObject(parsed);
+    const time = pickValue(flat, ['案发时间', '时间', '发生时间']);
+    const place = pickValue(flat, ['案发地点', '地点', '发生地点']);
+    const person = pickValue(flat, ['违法嫌疑人', '当事人', '姓名']);
+    const nature = pickValue(flat, ['案件性质', '案由', '违法性质']);
+    const parts = [time, place, person, nature].filter(Boolean);
+    if (parts.length > 0) return parts.join(' · ');
+  } catch {
+    // 非 JSON 输入继续按普通文本处理
+  }
+
+  const fuzzyTime = matchField(raw, ['案发时间', '发生时间']);
+  const fuzzyPlace = matchField(raw, ['案发地点', '发生地点']);
+  const fuzzyNature = matchField(raw, ['案件性质', '案由', '违法性质']);
+  const fuzzyParts = [fuzzyTime, fuzzyPlace, fuzzyNature].filter(Boolean);
+  if (fuzzyParts.length > 0) return fuzzyParts.join(' · ');
+
+  const cleaned = raw
+    .replace(/[{}[\]"'#*_`>-]/g, ' ')
+    .replace(/\\n/g, ' ')
+    .replace(/[：:]\s*/g, '：')
+    .replace(/[,，]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return cleaned.length > 90 ? `${cleaned.slice(0, 90)}...` : cleaned;
+}
+
+function flattenObject(value: unknown, result: Record<string, string> = {}): Record<string, string> {
+  if (!value || typeof value !== 'object') return result;
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      flattenObject(val, result);
+    } else if (val !== undefined && val !== null) {
+      result[key] = Array.isArray(val) ? val.join('、') : String(val);
+    }
+  }
+  return result;
+}
+
+function pickValue(source: Record<string, string>, names: string[]): string {
+  for (const name of names) {
+    if (source[name]) return source[name];
+    const fuzzyKey = Object.keys(source).find((key) => key.includes(name));
+    if (fuzzyKey && source[fuzzyKey]) return source[fuzzyKey];
+  }
+  return '';
+}
+
+function matchField(text: string, names: string[]): string {
+  for (const name of names) {
+    const pattern = new RegExp(`${name}["'：:\\s]*([^,，。\\n}"']{2,40})`);
+    const match = text.match(pattern);
+    if (match?.[1]) return `${name}：${match[1].trim()}`;
+  }
+  return '';
 }

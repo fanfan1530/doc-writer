@@ -16,8 +16,56 @@ logger = logging.getLogger(__name__)
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 
 
+async def _ensure_schema_updates():
+    """自动添加缺失的数据库列（开发环境 SQLite 兼容方案）。"""
+    from app.infrastructure.database import engine, DATABASE_URL
+    import sqlalchemy as sa
+
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
+    # 各表缺失列定义
+    _table_migrations: dict[str, list[tuple[str, str]]] = {
+        "document_templates": [
+            ("usage_guide", "TEXT DEFAULT ''"),
+            ("category", "VARCHAR(32) DEFAULT '行政'"),
+            ("subcategory", "VARCHAR(64) DEFAULT ''"),
+            ("is_official", "BOOLEAN DEFAULT 0"),
+            ("created_at", "TIMESTAMP"),
+        ],
+        "users": [
+            ("display_name", "VARCHAR(64) DEFAULT ''"),
+            ("unit", "VARCHAR(128) DEFAULT ''"),
+            ("updated_at", "TIMESTAMP"),
+        ],
+    }
+
+    try:
+        async with engine.begin() as conn:
+            for table, columns in _table_migrations.items():
+                try:
+                    existing = await conn.run_sync(
+                        lambda sync_conn, t=table: [
+                            row[1] for row in
+                            sync_conn.execute(sa.text(f"PRAGMA table_info({t})")).fetchall()
+                        ]
+                    )
+                except Exception:
+                    continue  # 表可能尚未创建
+
+                for col_name, col_type in columns:
+                    if col_name not in existing:
+                        await conn.execute(
+                            sa.text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+                        )
+                        logger.info("已添加缺失列: %s.%s", table, col_name)
+    except Exception:
+        logger.debug("Schema 更新检查失败（可能是首次启动）", exc_info=True)
+
+
 async def migrate_json_to_db():
     """从 JSON 文件导入数据到 DB（仅当 DB 为空时执行）。"""
+    await _ensure_schema_updates()
     async with AsyncSessionLocal() as db:
         # 模型配置
         count = (await db.execute(select(func.count()).select_from(ModelConfig))).scalar()

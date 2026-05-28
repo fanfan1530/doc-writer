@@ -1,7 +1,7 @@
 """Prometheus 监控指标导出。"""
 
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram, Gauge, Info
 
 # 自定义指标
 llm_call_counter = Counter(
@@ -21,6 +21,9 @@ active_requests = Gauge(
     "active_requests", "当前活跃请求数",
 )
 
+# 应用信息（静态标签指标，仅在 /metrics 端点展示）
+app_info = Info("doc_writer_info", "Application info")
+
 
 def setup_monitoring(app):
     """配置 FastAPI 应用的 Prometheus 监控。"""
@@ -31,11 +34,5 @@ def setup_monitoring(app):
     )
     instrumentator.add(metrics.latency())
     instrumentator.add(metrics.requests())
-    try:
-        from prometheus_client import Info as PromInfo
-        prom_info = PromInfo("doc_writer_info", "Application info")
-        instrumentator.add(prom_info)
-    except Exception:
-        pass
     instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return instrumentator

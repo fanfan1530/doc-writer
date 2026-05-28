@@ -5,11 +5,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.core.auth import decode_token
+from app.core.security import get_user_permissions
 
 PUBLIC_PATHS = {
     "/api/health",
     "/api/auth/login",
     "/api/auth/register",
+    "/api/auth/refresh",
     "/docs",
     "/openapi.json",
     "/",
@@ -44,8 +46,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 content={"error": True, "code": "UNAUTHORIZED", "message": "无效的认证令牌"},
             )
 
+        role = payload.get("role", "user")
         request.state.user_id = payload.get("user_id", 0)
         request.state.username = payload.get("sub", "")
-        request.state.role = payload.get("role", "user")
+        request.state.role = role
+        request.state.permissions = get_user_permissions(role)
 
         return await call_next(request)

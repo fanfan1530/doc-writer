@@ -216,6 +216,9 @@ class DocumentService:
 
         content = self._fill_template(template_text, elements)
 
+        # 6. 期限预警（与手动模式保持一致）
+        deadline_warnings = self.check_legal_deadlines(elements, doc_type)
+
         result = {
             "elements": elements,
             "suggested_laws": (
@@ -224,12 +227,20 @@ class DocumentService:
             "case_nature": extracted.get("case_nature", ""),
             "content": content or input_text,
             "template_used": template is not None,
+            "deadline_warnings": deadline_warnings,
         }
         elapsed_ms = int((time.time() - t0) * 1000)
         self._schedule_history_record(
             doc_type=doc_type, input_text=input_text, result=result,
             model_name=self._get_model_name(), elapsed_ms=elapsed_ms,
         )
+        # 监控指标
+        try:
+            from app.core.monitoring import doc_generation_counter, llm_call_counter
+            doc_generation_counter.labels(doc_type=doc_type).inc()
+            llm_call_counter.labels(model=self._get_model_name(), doc_type=doc_type).inc()
+        except Exception:
+            pass
         return result
 
     # ── 手动模板填充 ──────────────────────────────────────
@@ -275,6 +286,13 @@ class DocumentService:
             doc_type=doc_type, input_text=manual_input, result=result,
             model_name=self._get_model_name(), elapsed_ms=elapsed_ms,
         )
+        # 监控指标
+        try:
+            from app.core.monitoring import doc_generation_counter, llm_call_counter
+            doc_generation_counter.labels(doc_type=doc_type).inc()
+            llm_call_counter.labels(model=self._get_model_name(), doc_type=doc_type).inc()
+        except Exception:
+            pass
         return result
 
     # ── 文件摘要 ──────────────────────────────────────────
@@ -453,12 +471,18 @@ class DocumentService:
         try:
             from app.infrastructure.database import AsyncSessionLocal
             from app.infrastructure.models import GenerationHistory
+
+            output = str(result.get("content", ""))
+            # 粗略估算 token 数：中文约 1.5 字符/token，英文约 4 字符/token
+            estimated_tokens = int(len(input_text) / 1.8 + len(output) / 1.8)
+
             async with AsyncSessionLocal() as db:
                 db.add(GenerationHistory(
                     doc_type=doc_type,
                     input_text=input_text[:2000],
-                    output_content=str(result.get("content", ""))[:5000],
+                    output_content=output[:5000],
                     model_used=model_name,
+                    tokens_used=estimated_tokens,
                     latency_ms=elapsed_ms,
                     elements=result.get("elements", {}),
                     suggested_laws=result.get("suggested_laws", []),

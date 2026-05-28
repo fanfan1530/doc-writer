@@ -104,7 +104,11 @@ class LLMClient:
                 ],
                 "content": msg.content,
             }
-        return msg.content or ""
+        # DeepSeek reasoning models may put output in reasoning_content with empty content
+        content = msg.content or ""
+        if not content and hasattr(msg, "reasoning_content") and msg.reasoning_content:
+            content = msg.reasoning_content
+        return content
 
     async def chat_stream(
         self,

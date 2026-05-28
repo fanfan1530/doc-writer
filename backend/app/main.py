@@ -2,6 +2,7 @@
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -10,9 +11,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import auth, copilot, generation, models, cases, knowledge
+from app.api import auth, copilot, generation, models, cases, knowledge, admin, notifications, ws, analytics
 from app.config import get_settings
 from app.middleware.request_id import RequestIDMiddleware
+from app.middleware.request_timing import RequestTimingMiddleware
 from app.middleware.error_handler import (
     http_exception_handler,
     validation_exception_handler,
@@ -29,16 +31,55 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
+async def _seed_default_admin():
+    """首次启动时创建默认管理员账户（admin/admin123）。"""
+    try:
+        from app.infrastructure.database import AsyncSessionLocal
+        from app.infrastructure.models import User
+        from app.core.auth import hash_password
+        from sqlalchemy import select, func
+
+        async with AsyncSessionLocal() as db:
+            count = (await db.execute(select(func.count()).select_from(User))).scalar()
+            if count == 0:
+                db.add(User(
+                    username="admin",
+                    hashed_password=hash_password("admin123"),
+                    role="system_admin",
+                    display_name="系统管理员",
+                ))
+                await db.commit()
+    except Exception:
+        pass  # 用户表可能尚未创建
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期：启动时初始化 DB、迁移数据、创建默认用户、初始化案例索引。"""
+    from app.infrastructure.database import init_db
+    await init_db()
+    from app.infrastructure.data_migration import migrate_json_to_db
+    await migrate_json_to_db()
+    await _seed_default_admin()
+    from app.services.case_service import seed_cases
+    seed_cases()
+    yield
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         docs_url="/docs",
+        lifespan=lifespan,
     )
 
     # 请求 ID 中间件（最外层，最先执行）
     app.add_middleware(RequestIDMiddleware)
+
+    # 请求计时 + 结构化访问日志（紧跟 RequestID）
+    app.add_middleware(RequestTimingMiddleware)
 
     # JWT 认证中间件
     from app.middleware.auth import AuthMiddleware
@@ -58,18 +99,6 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
-    # 启动时初始化数据库 + 默认用户
-    @app.on_event("startup")
-    async def on_startup():
-        from app.infrastructure.database import init_db
-        await init_db()
-        from app.infrastructure.data_migration import migrate_json_to_db
-        await migrate_json_to_db()
-        await _seed_default_admin()
-        # 初始化案例向量索引（幂等）
-        from app.services.case_service import seed_cases
-        seed_cases()
-
     # 监控（必须在 app 启动前注册 middleware）
     from app.core.monitoring import setup_monitoring
     setup_monitoring(app)
@@ -81,6 +110,10 @@ def create_app() -> FastAPI:
     app.include_router(models.router)
     app.include_router(cases.router)
     app.include_router(knowledge.router)
+    app.include_router(admin.router)
+    app.include_router(notifications.router)
+    app.include_router(ws.router)
+    app.include_router(analytics.router)
 
     @app.get("/api/health")
     async def health_check():
@@ -100,27 +133,6 @@ def create_app() -> FastAPI:
             return FileResponse(os.path.join(frontend_dist, "index.html"))
 
     return app
-
-
-async def _seed_default_admin():
-    """首次启动时创建默认管理员账户（admin/admin123）。"""
-    try:
-        from app.infrastructure.database import AsyncSessionLocal
-        from app.infrastructure.models import User
-        from app.core.auth import hash_password
-        from sqlalchemy import select, func
-
-        async with AsyncSessionLocal() as db:
-            count = (await db.execute(select(func.count()).select_from(User))).scalar()
-            if count == 0:
-                db.add(User(
-                    username="admin",
-                    hashed_password=hash_password("admin123"),
-                    role="admin",
-                ))
-                await db.commit()
-    except Exception:
-        pass  # 用户表可能尚未创建
 
 
 app = create_app()

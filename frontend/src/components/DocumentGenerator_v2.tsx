@@ -10,7 +10,10 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Select, Segmented, Divider, Space, Tag, Typography, Alert, App,
 } from 'antd';
-import { ThunderboltOutlined, EditOutlined, WarningOutlined } from '@ant-design/icons';
+import {
+  ThunderboltOutlined, EditOutlined, WarningOutlined,
+  FileDoneOutlined, FormOutlined,
+} from '@ant-design/icons';
 import { DOC_TYPES } from '../constants/docTypes';
 import { useGeneration } from '../hooks/useGeneration';
 import AiModePanel from './generator/AiModePanel';
@@ -87,26 +90,44 @@ export default function DocumentGeneratorV2({
 
   return (
     <Card className="shadow-sm border-0 rounded-xl h-full flex flex-col min-h-0"
-      styles={{ body: { padding: '14px', display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' } }}>
+      styles={{ body: { padding: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' } }}>
 
-      <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-        <Segmented
-          size="small"
-          value={mode}
-          onChange={(v) => handleModeChange(v as 'ai' | 'manual')}
-          options={[
-            { label: 'AI', value: 'ai', icon: <ThunderboltOutlined /> },
-            { label: '手动', value: 'manual', icon: <EditOutlined /> },
-          ]}
-        />
-        <Select
-          value={docType}
-          onChange={handleDocTypeChange}
-          size="small"
-          className="flex-1 min-w-0"
-          showSearch
-          options={DOC_TYPES.map((t) => ({ label: t, value: t }))}
-        />
+      <div className="flex-shrink-0 mb-3">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <div className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <FileDoneOutlined className="text-police-500" />
+              文书生成
+            </div>
+            <div className="text-xs text-slate-400 mt-1">
+              先补全案情，再核对右侧预览内容
+            </div>
+          </div>
+          <Segmented
+            size="small"
+            value={mode}
+            onChange={(v) => handleModeChange(v as 'ai' | 'manual')}
+            options={[
+              { label: 'AI', value: 'ai', icon: <ThunderboltOutlined /> },
+              { label: '手填', value: 'manual', icon: <EditOutlined /> },
+            ]}
+          />
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
+            <FormOutlined />
+            文书类型
+          </div>
+          <Select
+            value={docType}
+            onChange={handleDocTypeChange}
+            size="middle"
+            className="w-full"
+            showSearch
+            options={DOC_TYPES.map((t) => ({ label: t, value: t }))}
+          />
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto">

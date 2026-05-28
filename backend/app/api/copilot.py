@@ -52,6 +52,13 @@ async def chat(body: ChatRequest, request: Request):
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
 
+    # 速率限制
+    from app.core.security import rate_limiter, raise_rate_limited
+    client_ip = request.client.host if request.client else "unknown"
+    rl_info = await rate_limiter.check(f"copilot:{client_ip}")
+    if not rl_info.allowed:
+        raise_rate_limited(rl_info)
+
     # 获取或创建会话
     conv_id = body.conversation_id
     if not conv_id:
@@ -67,13 +74,18 @@ async def chat(body: ChatRequest, request: Request):
 
     async def event_stream():
         full_reply = ""
+        tool_calls_record: list[dict] = []
         async for sse_data in copilot.stream_chat(
             user_message=body.message,
             history=history,
             doc_context=body.doc_context,
             mode=body.mode,
         ):
-            # 解析 SSE 数据，提取文本
+            # 客户端断开时提前终止
+            if await request.is_disconnected():
+                break
+
+            # 解析 SSE 数据，提取文本和工具调用
             if "event: chunk" in sse_data:
                 import json as _json
                 try:
@@ -82,11 +94,23 @@ async def chat(body: ChatRequest, request: Request):
                     full_reply += chunk_data.get("text", "")
                 except Exception:
                     pass
+            elif "event: tool_result" in sse_data:
+                import json as _json
+                try:
+                    data_part = sse_data.split("data: ")[1].strip()
+                    tool_data = _json.loads(data_part)
+                    tool_calls_record.append({
+                        "name": tool_data.get("tool", ""),
+                        "result": tool_data.get("result", "")[:1000],
+                        "status": "done",
+                    })
+                except Exception:
+                    pass
             yield sse_data
 
-        # 保存 AI 回复 + 更新会话标题
-        if full_reply:
-            await _save_message(conv_id, "assistant", full_reply)
+        # 保存 AI 回复 + 工具调用记录
+        if full_reply or tool_calls_record:
+            await _save_message(conv_id, "assistant", full_reply, tool_calls_record)
             await _auto_title(conv_id, body.message)
 
     return StreamingResponse(
@@ -229,9 +253,6 @@ async def delete_conversation(conv_id: int, request: Request):
             raise HTTPException(status_code=404, detail="对话不存在")
 
         # 删除消息
-        await db.execute(
-            select(Message).where(Message.conversation_id == conv_id)
-        )
         result = await db.execute(
             select(Message).where(Message.conversation_id == conv_id)
         )
@@ -254,9 +275,15 @@ async def _create_conversation(user_id: int, first_message: str) -> int:
         return conv.id
 
 
-async def _save_message(conv_id: int, role: str, content: str) -> None:
+async def _save_message(
+    conv_id: int, role: str, content: str, tool_calls: list[dict] | None = None,
+) -> None:
     async with AsyncSessionLocal() as db:
-        db.add(Message(conversation_id=conv_id, role=role, content=content[:5000]))
+        db.add(Message(
+            conversation_id=conv_id, role=role,
+            content=content[:5000],
+            tool_calls=tool_calls or [],
+        ))
         await db.commit()
 
 
@@ -275,12 +302,34 @@ async def _load_history(conv_id: int) -> list[dict]:
 
 
 async def _auto_title(conv_id: int, first_msg: str) -> None:
-    """用首条消息自动生成标题。"""
+    """用 LLM 从首条消息自动生成简短标题。"""
     title = first_msg[:50].replace("\n", " ")
     async with AsyncSessionLocal() as db:
         conv = (await db.execute(
             select(Conversation).where(Conversation.id == conv_id)
         )).scalar_one_or_none()
-        if conv and conv.title == title:
+        if not conv or conv.title != title:
+            return
+
+        # 尝试用 LLM 生成更好的标题
+        try:
+            from app.services.copilot_service import CopilotService
+            client = model_manager.get_client()
+            model = model_manager.get_active_config().get("model_name", "")
+            resp = await client.chat(
+                model=model,
+                messages=[{
+                    "role": "user",
+                    "content": f"用不超过20个字概括以下用户问题，只输出标题本身，不加标点：\n\n{first_msg[:200]}",
+                }],
+                temperature=0.2,
+                max_tokens=50,
+                timeout=30,
+            )
+            if resp and len(resp.strip()) <= 30:
+                conv.title = resp.strip()
+            else:
+                conv.title = title
+        except Exception:
             conv.title = title
-            await db.commit()
+        await db.commit()

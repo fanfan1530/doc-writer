@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from app.core.file_parser import MAX_FILE_SIZE, parse_uploaded_file, validate_file
 from app.core.model_manager import ModelManager
 from app.core.rag_retriever import RAGRetriever
-from app.core.security import sanitize_llm_input, rate_limiter
+from app.core.security import sanitize_llm_input, rate_limiter, raise_rate_limited
 from app.core.export.docx_exporter import file_response_from_docx
 from app.services.document_service import DocumentService
 from app.models.requests import (
@@ -60,8 +60,9 @@ doc_service = DocumentService(model_manager=model_manager, rag_retriever=rag)
 async def generate_document(body: DocumentGenerateRequest, request: Request):
     """AI 智能文书生成：要素抽取 + 模板填充 + 法条推荐 + 事实润色。"""
     client_ip = request.client.host if request.client else "unknown"
-    if not await rate_limiter.is_allowed(client_ip):
-        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+    rl_info = await rate_limiter.check(client_ip)
+    if not rl_info.allowed:
+        raise_rate_limited(rl_info)
 
     sanitized = sanitize_llm_input(body.input_text)
     result = await doc_service.generate_document(body.doc_type, sanitized)
@@ -103,8 +104,9 @@ async def suggest_laws(body: SuggestLawsRequest):
 async def fill_template(body: FillTemplateRequest, request: Request):
     """手动填写模板：用户逐项填写字段 → 模板填充 + 事实润色 + 法条推荐 + 期限预警。"""
     client_ip = request.client.host if request.client else "unknown"
-    if not await rate_limiter.is_allowed(client_ip):
-        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+    rl_info = await rate_limiter.check(client_ip)
+    if not rl_info.allowed:
+        raise_rate_limited(rl_info)
 
     fields = {k: sanitize_llm_input(str(v)) if v else v for k, v in body.fields.items()}
     try:
@@ -115,18 +117,48 @@ async def fill_template(body: FillTemplateRequest, request: Request):
 
 
 @router.get("/templates")
-async def list_templates():
-    """获取可用的文书模板列表。"""
+async def list_templates(category: str = "", keyword: str = ""):
+    """获取可用的文书模板列表（可按类别筛选 + 关键词搜索）。"""
+    templates = rag._templates
+    if category:
+        templates = [t for t in templates if t.get("category", "") == category]
+    if keyword:
+        kw = keyword.lower()
+        templates = [
+            t for t in templates
+            if kw in t.get("name", "").lower()
+            or kw in t.get("doc_type", "").lower()
+            or kw in t.get("description", "").lower()
+            or kw in t.get("usage_guide", "").lower()
+        ]
     return {
         "templates": [
             {
                 "doc_type": t.get("doc_type", ""),
                 "name": t.get("name", ""),
                 "description": t.get("description", ""),
+                "category": t.get("category", ""),
+                "is_official": t.get("is_official", False),
+                "version": t.get("version", 1),
             }
-            for t in rag._templates
+            for t in templates
         ],
-        "total": len(rag._templates),
+        "total": len(templates),
+    }
+
+
+@router.get("/templates/categories")
+async def list_template_categories():
+    """获取模板分类列表及各类别数量。"""
+    cats: dict[str, int] = {}
+    for t in rag._templates:
+        cat = t.get("category", "未分类")
+        cats[cat] = cats.get(cat, 0) + 1
+    return {
+        "categories": [
+            {"name": k, "count": v} for k, v in sorted(cats.items())
+        ],
+        "total_templates": len(rag._templates),
     }
 
 
@@ -162,21 +194,9 @@ class ExtractTimelineRequest(BaseModel):
 @router.post("/extract-timeline")
 async def extract_timeline(body: ExtractTimelineRequest):
     """从案情描述中提取时间序列事件，生成案件时间线。"""
-    prompt = f"""你是一名资深公安法制审核专家。请从以下案件描述中提取所有带时间信息的事件，按时间顺序排列，输出 JSON 数组。
+    from app.core.llm.prompts import TIMELINE_EXTRACTION_PROMPT
 
-每个事件字段：
-- timestamp: 时间描述（保留原文表述，如"2024年3月15日上午9时许"）
-- event_type: 事件类型（arrest=抓捕/到案, investigation=侦查, evidence=取证, court=庭审/裁决, report=报案/受理, other=其他）
-- description: 事件简要描述（一句话）
-- involved_parties: 涉案人员（姓名或描述）
-- location: 发生地点
-
-只输出 JSON 数组，不要其他说明文字。
-
-案件描述：
-{body.case_text}
-
-JSON 输出："""
+    prompt = TIMELINE_EXTRACTION_PROMPT.format(case_text=body.case_text)
 
     try:
         result = await doc_service._call_llm(prompt, max_tokens=2048)
@@ -254,14 +274,26 @@ async def get_history(
     keyword: str = "",
     since: str = "",
     before: str = "",
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
     limit: int = 20,
     offset: int = 0,
 ):
-    """获取文书生成历史记录（分页 + 搜索 + 时间筛选）。"""
+    """获取文书生成历史记录（分页 + 搜索 + 时间筛选 + 服务端排序）。"""
     from datetime import datetime as _dt
     from app.infrastructure.database import AsyncSessionLocal
     from app.infrastructure.models import GenerationHistory
-    from sqlalchemy import select, func, and_
+    from sqlalchemy import select, func, and_, desc, asc
+
+    SORT_COLUMNS: dict[str, object] = {
+        "created_at": GenerationHistory.created_at,
+        "doc_type": GenerationHistory.doc_type,
+        "latency_ms": GenerationHistory.latency_ms,
+        "id": GenerationHistory.id,
+    }
+
+    sort_col = SORT_COLUMNS.get(sort_by, GenerationHistory.created_at)
+    sort_fn = desc if sort_order == "desc" else asc
 
     async with AsyncSessionLocal() as db:
         conditions = []
@@ -286,7 +318,7 @@ async def get_history(
 
         stmt = (
             base
-            .order_by(GenerationHistory.created_at.desc())
+            .order_by(sort_fn(sort_col))
             .offset(offset)
             .limit(min(limit, 100))
         )

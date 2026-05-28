@@ -1,18 +1,23 @@
-/** 案件分析页面 —— 上传笔录 → 一键分析 → 时间线 + 定性 双栏展示 */
-import { useState, useCallback, useEffect, useRef } from 'react';
+/** 案件分析页面 —— 上传笔录 → 一键分析 → 时间线 + 定性 双栏展示 + 跨模块联动 */
+import { useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Input, Button, Card, Spin, Timeline, Tag, Empty, Typography,
-  Upload, App, Progress, Descriptions, Divider,
+  Upload, App, Descriptions, Divider, Space,
 } from 'antd';
 import {
   ClockCircleOutlined, SafetyCertificateOutlined,
   EnvironmentOutlined, UserOutlined, InboxOutlined,
   LoadingOutlined, ThunderboltOutlined, FileTextOutlined,
-  ClearOutlined, CopyOutlined, AimOutlined,
+  ClearOutlined, CopyOutlined, AimOutlined, SearchOutlined,
 } from '@ant-design/icons';
+import client from '../../api/client';
 import { useFileUpload } from '../../hooks/useFileUpload';
+import { useSharedTranscript } from '../../hooks/useSharedTranscript';
 import { useAppContext } from '../../context/AppContext';
+import ErrorBoundary from '../ErrorBoundary';
 import type { UploadProps } from 'antd';
+import type { TimelineEvent } from '../../types';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -46,19 +51,14 @@ const EVENT_LABELS: Record<string, string> = {
 
 export default function CaseAnalysisPage() {
   const { message } = App.useApp();
+  const navigate = useNavigate();
   const [caseText, setCaseText] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
-  const [timeline, setTimeline] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [analysis, setAnalysis] = useState('');
-  const { sharedTranscript, setSharedTranscript } = useAppContext();
-
-  // 从共享笔录恢复（切换页面后自动填充）
-  useEffect(() => {
-    if (sharedTranscript && !caseText) {
-      setCaseText(sharedTranscript.text);
-    }
-  }, []);
+  const { setSharedTranscript } = useAppContext();
+  useSharedTranscript(setCaseText);
 
   // refs: 解决 useFileUpload 与回调之间循环依赖
   const uploadedFileNameRef = useRef('');
@@ -101,7 +101,7 @@ export default function CaseAnalysisPage() {
         message.warning('文件大小不能超过 10 MB');
         return Upload.LIST_IGNORE;
       }
-      uploadFile(file as unknown as File, '行政处罚决定书');
+      uploadFile(file as unknown as File, '');
       return false;
     },
   };
@@ -119,33 +119,36 @@ export default function CaseAnalysisPage() {
     navigator.clipboard.writeText(text).then(() => message.success('时间线已复制'));
   };
 
+  const handleSearchSimilar = () => {
+    if (caseText.trim()) {
+      setSharedTranscript({
+        text: caseText.trim(),
+        rawText: '',
+        fileName: '案情分析',
+        uploadedAt: Date.now(),
+      });
+    }
+    navigate('/cases');
+  };
+
   // ── 一键全部分析 ──
   const runFullAnalysis = async (text?: string) => {
     const content = (text || caseText).trim();
-    if (!content) return;
+    if (!content || loading) return;
 
     setLoading(true);
     setTimeline([]);
     setAnalysis('');
 
-    const token = localStorage.getItem('access_token');
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
-    // 并行请求
     setLoadingStep('正在提取时间线...');
-    const timelinePromise = fetch('/api/generation/extract-timeline', {
-      method: 'POST', headers,
-      body: JSON.stringify({ case_text: content }),
-    }).then(r => r.ok ? r.json() : { events: [] }).catch(() => ({ events: [] }));
+    const timelinePromise = client.post('/generation/extract-timeline', {
+      case_text: content,
+    }).then(r => r.data).catch(() => ({ events: [] }));
 
     setLoadingStep('正在定性分析...');
-    const analysisPromise = fetch('/api/generation/extract-elements', {
-      method: 'POST', headers,
-      body: JSON.stringify({ input_text: content, doc_type: '行政处罚决定书' }),
-    }).then(r => r.ok ? r.json() : { elements: {} }).catch(() => ({ elements: {} }));
+    const analysisPromise = client.post('/generation/extract-elements', {
+      input_text: content, doc_type: '行政处罚决定书',
+    }).then(r => r.data).catch(() => ({ elements: {} }));
 
     try {
       const [timelineData, analysisData] = await Promise.all([timelinePromise, analysisPromise]);
@@ -201,9 +204,15 @@ export default function CaseAnalysisPage() {
           案件分析
         </h2>
         {hasContent && (
-          <Button size="small" icon={<ClearOutlined />} onClick={handleClear} disabled={loading}>
-            清空
-          </Button>
+          <Space size={8}>
+            <Button size="small" icon={<SearchOutlined />}
+              onClick={handleSearchSimilar} disabled={loading}>
+              检索相似案例
+            </Button>
+            <Button size="small" icon={<ClearOutlined />} onClick={handleClear} disabled={loading}>
+              清空
+            </Button>
+          </Space>
         )}
       </div>
 
@@ -306,7 +315,22 @@ export default function CaseAnalysisPage() {
           )}
 
           {hasResults && (
-            <>
+            <ErrorBoundary
+              FallbackComponent={({ error, onRetry }) => (
+                <Card size="small" className="rounded-xl shadow-sm border-0 flex-shrink-0">
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <span className="text-xs text-slate-400">
+                        结果展示出错: {error?.message}
+                        <br />
+                        <Button size="small" type="link" onClick={onRetry}>重试</Button>
+                      </span>
+                    }
+                  />
+                </Card>
+              )}
+            >
               {/* 时间线 */}
               <Card
                 size="small"
@@ -385,7 +409,7 @@ export default function CaseAnalysisPage() {
                   </pre>
                 )}
               </Card>
-            </>
+            </ErrorBoundary>
           )}
         </div>
       </div>

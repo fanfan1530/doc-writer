@@ -17,10 +17,12 @@ model_manager = ModelManager()
 # ── 请求模型 ─────────────────────────────────────────────
 
 class SwitchModelRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     model_id: str = Field(..., description="要切换到的模型 ID")
 
 
 class ModelConfigRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     id: str = Field(default="", description="更新已有模型时必填，新增时留空")
     name: str = Field(..., description="模型显示名称")
     provider: str = Field(default="自定义", description="厂商名称")
@@ -32,6 +34,7 @@ class ModelConfigRequest(BaseModel):
 
 
 class TestConnectionRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     base_url: str = Field(..., description="API 端点地址")
     api_key: str = Field(default="", description="API Key")
     model_name: str = Field(..., description="模型名")
@@ -94,6 +97,7 @@ async def save_model_config(body: ModelConfigRequest):
 
 
 class DeleteModelRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     model_id: str = Field(..., description="要删除的模型 ID")
 
 

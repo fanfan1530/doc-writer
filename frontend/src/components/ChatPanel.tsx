@@ -11,7 +11,7 @@ import {
   BulbOutlined, SearchOutlined, FormOutlined, ClockCircleOutlined,
   SafetyOutlined, FundOutlined,
 } from '@ant-design/icons';
-import { getAccessToken } from '../api/client';
+import client, { getAccessToken } from '../api/client';
 import type { Conversation } from '../types/copilot';
 import { TOOL_LABELS, TOOL_ICONS } from '../types/copilot';
 
@@ -67,19 +67,17 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
   const msgListRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const userScrolledUpRef = useRef(false);            // 用户手动上翻时暂停自动滚动
+  const accumulatedRef = useRef('');                  // 避免流式读取中的陈旧闭包
+  const lastMsgIdRef = useRef('');                    // 用于追踪流式消息 ID
+  const [connectionState, setConnectionState] = useState<'idle' | 'connecting' | 'streaming' | 'disconnected'>('idle');
 
   // ── 加载会话列表 ──
   const loadConversations = useCallback(async () => {
     setLoadingConvs(true);
     try {
-      const token = getAccessToken();
-      const resp = await fetch('/api/copilot/conversations?limit=50', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        setConversations(data.conversations || []);
-      }
+      const { data } = await client.get('/copilot/conversations', { params: { limit: 50 } });
+      setConversations(data.conversations || []);
     } catch { /* ignore */ } finally {
       setLoadingConvs(false);
     }
@@ -92,29 +90,27 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
   // ── 加载会话消息 ──
   const loadMessages = useCallback(async (id: number) => {
     try {
-      const token = getAccessToken();
-      const resp = await fetch(`/api/copilot/conversations/${id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const msgs: UIMessage[] = (data.messages || []).map((m: {
-          id: number; role: string; content: string; tool_calls?: Array<{
-            name: string; args: Record<string, unknown>; result?: string;
-          }>;
-        }) => ({
-          id: String(m.id),
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content || '',
-          toolCalls: (m.tool_calls || []).map((tc) => ({
-            name: tc.name,
-            args: tc.args || {},
-            result: tc.result,
-            status: 'done' as const,
-          })),
-        }));
-        setMessages(msgs);
-      }
+      const { data } = await client.get(`/copilot/conversations/${id}`);
+      const msgs: UIMessage[] = (data.messages || []).map((m: {
+        id: number; role: string; content: string; tool_calls?: Array<{
+          name: string; args?: Record<string, unknown>; result?: string; status?: string;
+        }>;
+      }) => ({
+        id: String(m.id),
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content || '',
+        toolCalls: Array.isArray(m.tool_calls) && m.tool_calls.length > 0
+          ? (m.tool_calls as Array<{
+              name: string; args?: Record<string, unknown>; result?: string; status?: string;
+            }>).map((tc) => ({
+              name: tc.name,
+              args: tc.args || {},
+              result: tc.result,
+              status: (tc.status || 'done') as 'pending' | 'running' | 'done',
+            }))
+          : undefined,
+      }));
+      setMessages(msgs);
     } catch { /* ignore */ }
   }, []);
 
@@ -139,22 +135,35 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
   // ── 删除会话 ──
   const handleDeleteConv = useCallback(async (id: number) => {
     try {
-      const token = getAccessToken();
-      await fetch(`/api/copilot/conversations/${id}`, {
-        method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      await client.delete(`/copilot/conversations/${id}`);
       if (convId === id) handleNewChat();
       loadConversations();
     } catch { /* ignore */ }
   }, [convId, handleNewChat, loadConversations]);
 
-  // ── 自动滚动到底部 ──
+  // ── 智能自动滚动：用户手动上翻时暂停，滚动回底部时恢复 ──
   useEffect(() => {
-    if (msgListRef.current) {
-      msgListRef.current.scrollTop = msgListRef.current.scrollHeight;
-    }
+    const el = msgListRef.current;
+    if (!el || userScrolledUpRef.current) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages, thinkingText, activeToolCalls]);
+
+  // 监听滚动事件：检测用户是否手动上翻
+  useEffect(() => {
+    const el = msgListRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      if (!el) return;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+      if (atBottom) {
+        userScrolledUpRef.current = false;
+      } else {
+        userScrolledUpRef.current = true;
+      }
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // ── 发送消息 ──
   const handleSend = useCallback(async () => {
@@ -180,6 +189,10 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
     setStreaming(true);
     setThinkingText('正在分析您的问题...');
     setActiveToolCalls([]);
+    setConnectionState('connecting');
+    accumulatedRef.current = '';
+    lastMsgIdRef.current = assistantMsg.id;
+    userScrolledUpRef.current = false;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -216,12 +229,12 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
       }
 
       // 读取 SSE 流
+      setConnectionState('streaming');
       const reader = resp.body?.getReader();
       if (!reader) throw new Error('不支持流式响应');
 
       const decoder = new TextDecoder();
       let buffer = '';
-      let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -239,12 +252,13 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
             const dataStr = line.slice(6);
             try {
               const data = JSON.parse(dataStr);
-              handleSSEEvent(eventType, data, assistantMsg.id, (chunk) => {
-                fullContent += chunk;
+              const msgId = lastMsgIdRef.current;
+              handleSSEEvent(eventType, data, msgId, (chunk) => {
+                accumulatedRef.current += chunk;
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === assistantMsg.id
-                      ? { ...m, content: m.content + chunk }
+                    m.id === msgId
+                      ? { ...m, content: accumulatedRef.current }
                       : m,
                   ),
                 );
@@ -257,9 +271,10 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
       const errorText = err instanceof Error ? err.message : '连接失败';
+      setConnectionState('disconnected');
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantMsg.id && !m.content
+          m.id === lastMsgIdRef.current && !m.content
             ? { ...m, content: `错误: ${errorText}` }
             : m,
         ),
@@ -269,8 +284,9 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
       setThinkingText('');
       setActiveToolCalls([]);
       abortRef.current = null;
+      setConnectionState((prev) => prev === 'streaming' ? 'idle' : prev);
     }
-  }, [inputValue, streaming, convId, docContext, loadConversations]);
+  }, [inputValue, streaming, convId, docContext, mode, loadConversations]);
 
   // ── SSE 事件处理 ──
   function handleSSEEvent(
@@ -399,6 +415,26 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
           <RobotOutlined className="text-police-600" />
           AI 助手
         </span>
+        {connectionState !== 'idle' && (
+          <span
+            className={`flex items-center gap-1 text-[10px] ${
+              connectionState === 'streaming' ? 'text-green-600' :
+              connectionState === 'connecting' ? 'text-blue-500' :
+              'text-red-500'
+            }`}
+            style={{ marginLeft: 4 }}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                connectionState === 'streaming' ? 'bg-green-500 animate-pulse' :
+                connectionState === 'connecting' ? 'bg-blue-500 animate-pulse' :
+                'bg-red-500'
+              }`}
+            />
+            {connectionState === 'streaming' ? '流式接收中' :
+             connectionState === 'connecting' ? '连接中' : '已断开'}
+          </span>
+        )}
         <Segmented
           size="small"
           value={mode}
@@ -474,7 +510,7 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
         />
       </div>
 
-      {/* 消息列表 */}
+      {/* 消息列表 —— 每条消息使用 CSS containment 优化大量消息渲染 */}
       <div
         ref={msgListRef}
         className="flex-1 min-h-0 overflow-auto px-3 py-3 space-y-3"
@@ -499,6 +535,7 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
           <div
             key={msg.id}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 80px' }}
           >
             <div
               className={`max-w-[85%] ${

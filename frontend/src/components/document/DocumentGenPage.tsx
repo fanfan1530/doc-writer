@@ -1,9 +1,11 @@
 /** 文书生成页面 —— 双栏布局：左侧输入 + 右侧预览 */
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { CheckCircleOutlined, EditOutlined, FileSearchOutlined, FileTextOutlined, UploadOutlined } from '@ant-design/icons';
 import DocumentGeneratorV2 from '../DocumentGenerator_v2';
 import DocumentPreview from '../DocumentPreview';
 import { DEFAULT_DOC_TYPE } from '../../constants/docTypes';
+import { useSharedTranscript } from '../../hooks/useSharedTranscript';
 import { useAppContext } from '../../context/AppContext';
 import type { GenerationResult } from '../../types';
 
@@ -19,11 +21,7 @@ export default function DocumentGenPage() {
     generationTask, startGeneration, clearGeneration,
   } = useAppContext();
 
-  useEffect(() => {
-    if (!urlInput && sharedTranscript && !inputText) {
-      setInputText(sharedTranscript.text);
-    }
-  }, []);
+  useSharedTranscript(setInputText, !!urlInput);
 
   useEffect(() => {
     if (urlInput && urlInput.length > 30) {
@@ -60,11 +58,44 @@ export default function DocumentGenPage() {
 
   const effectiveGenerating = generationTask.status === 'running';
   const effectiveResult = generationTask.status === 'done' ? generationTask.result : null;
+  const hasInput = inputText.trim().length > 0;
+  const hasResult = !!effectiveResult?.content;
+
+  const flowSteps = [
+    { title: '选择类型', icon: <FileTextOutlined />, active: true },
+    { title: '录入案情', icon: <UploadOutlined />, active: hasInput || effectiveGenerating || hasResult },
+    { title: '核对要素', icon: <FileSearchOutlined />, active: effectiveGenerating || hasResult },
+    { title: '生成导出', icon: hasResult ? <CheckCircleOutlined /> : <EditOutlined />, active: hasResult },
+  ];
 
   return (
-    <div className="h-full flex flex-col p-3 page-enter min-h-0">
-      <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 max-w-[1600px] mx-auto w-full">
-        <div className="w-full lg:w-[420px] flex-shrink-0 flex flex-col min-h-0">
+    <div className="h-full flex flex-col p-4 page-enter min-h-0">
+      <div className="max-w-[1600px] mx-auto w-full flex flex-col gap-3 flex-1 min-h-0">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 px-4 py-3 flex-shrink-0">
+          <div className="grid grid-cols-4 gap-2">
+            {flowSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className={`relative flex items-center gap-2 rounded-lg px-3 py-2 ${
+                  step.active ? 'bg-police-50 text-police-700' : 'bg-slate-50 text-slate-400'
+                }`}
+              >
+                {index > 0 && (
+                  <span className="hidden lg:block absolute -left-2 top-1/2 h-px w-2 bg-slate-200" />
+                )}
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                  step.active ? 'bg-police-600 text-white' : 'bg-white text-slate-400'
+                }`}>
+                  {step.icon}
+                </span>
+                <span className="text-sm font-medium truncate">{step.title}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
+        <div className="w-full lg:w-[500px] flex-shrink-0 flex flex-col min-h-0">
           <DocumentGeneratorV2
             docType={docType}
             inputText={inputText}
@@ -77,15 +108,17 @@ export default function DocumentGenPage() {
           />
         </div>
         <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-          <div className="flex-shrink-0 pb-1.5">
-            <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+          <div className="flex-shrink-0 pb-2 flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-police-500" />
-              文书预览
+              文书预览与导出
             </span>
+            <span className="text-xs text-slate-400">生成后可复制、打印或下载 Word</span>
           </div>
           <div className="flex-1 min-h-0">
             <DocumentPreview result={effectiveResult} generating={effectiveGenerating} docType={docType} />
           </div>
+        </div>
         </div>
       </div>
     </div>

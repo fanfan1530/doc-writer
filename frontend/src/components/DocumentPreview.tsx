@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   Card, Button, Tag, Space, Typography, Collapse, Descriptions, Spin, App,
+  Alert,
 } from 'antd';
 import {
-  CopyOutlined, DownloadOutlined,
-  ThunderboltOutlined, CheckCircleOutlined,
+  CopyOutlined, DownloadOutlined, PrinterOutlined,
+  ThunderboltOutlined, CheckCircleOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import client from '../api/client';
 import type { GenerationResult } from '../types';
@@ -23,6 +24,10 @@ export default function DocumentPreview({
 }: DocumentPreviewProps) {
   const { message } = App.useApp();
   const [downloading, setDownloading] = useState(false);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const handleCopy = async () => {
     if (!result?.content) return;
@@ -57,8 +62,8 @@ export default function DocumentPreview({
       a.click();
       window.URL.revokeObjectURL(url);
       message.success('下载完成');
-    } catch {
-      message.error('下载失败');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '下载失败');
     } finally {
       setDownloading(false);
     }
@@ -124,6 +129,14 @@ export default function DocumentPreview({
             复制
           </Button>
           <Button
+            icon={<PrinterOutlined />}
+            size="small"
+            onClick={handlePrint}
+            className="text-xs"
+          >
+            打印
+          </Button>
+          <Button
             icon={<DownloadOutlined />}
             type="primary"
             ghost
@@ -137,6 +150,18 @@ export default function DocumentPreview({
         </Space>
       </div>
 
+      {/* Empty content warning */}
+      {!result.content && (
+        <Alert
+          type="warning"
+          icon={<WarningOutlined />}
+          message="文书内容为空"
+          description="AI 未能生成有效文书内容，可能是输入信息不足或所选文书类型不匹配。请尝试补充更多案情细节或更换文书类型后重新生成。"
+          className="mb-2 flex-shrink-0 text-xs rounded-lg"
+          showIcon
+        />
+      )}
+
       {/* Paper document preview */}
       <div className="flex-1 min-h-0 overflow-auto py-3 px-1">
         <div className="document-preview bg-[#fdfaf5] p-8 rounded-sm min-h-full
@@ -147,7 +172,7 @@ export default function DocumentPreview({
             backgroundImage: 'linear-gradient(rgba(180,160,120,0.03) 1px, transparent 1px)',
             backgroundSize: '100% 32px',
           }}>
-          {result.content}
+          {result.content || '（无内容）'}
         </div>
       </div>
 

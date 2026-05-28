@@ -38,9 +38,13 @@ export function useGeneration() {
       const { data } = await client.post<GenerationResult>('/generation/document', {
         doc_type: docType,
         input_text: inputText,
-      });
+      }, { timeout: 120000 });
       setResult(data);
-      message.success('文书生成完成');
+      if (!data.content) {
+        message.warning('文书生成完成，但内容为空，请检查输入或更换文书类型');
+      } else {
+        message.success('文书生成完成');
+      }
     } catch (err) {
       setResult(null);
       message.error(`生成失败: ${err instanceof Error ? err.message : '未知错误'}`);
@@ -57,7 +61,7 @@ export function useGeneration() {
     try {
       const { data } = await client.post('/generation/fill-template', {
         doc_type: docType, fields,
-      });
+      }, { timeout: 120000 });
       setResult({
         doc_type: docType,
         elements: data.elements,

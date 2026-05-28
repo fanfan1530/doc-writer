@@ -1,28 +1,18 @@
-/** 登录页面 —— 使用默认 admin 账户或自定义登录。 */
-
+/** 登录页面 —— remember me + autocomplete + idle timer */
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Input, Button, Typography, App } from 'antd';
+import { Card, Input, Button, Checkbox, Typography, App } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { setTokens } from '../api/client';
 
 const { Text, Title } = Typography;
 
-interface Props {
-  onLogin?: () => void;
-}
-
-export default function LoginPage({ onLogin }: Props) {
+export default function LoginPage({ onLogin }: { onLogin?: () => void }) {
   const { message } = App.useApp();
-  // useNavigate may throw if not inside a Router (App_v2 fallback)
-  let navigate: ReturnType<typeof useNavigate> | undefined;
-  try {
-    navigate = useNavigate();
-  } catch {
-    navigate = undefined;
-  }
+  const navigate = useNavigate();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -42,12 +32,20 @@ export default function LoginPage({ onLogin }: Props) {
         throw new Error(err.detail || '登录失败');
       }
       const data = await resp.json();
-      setTokens(data.access_token, data.refresh_token);
-      message.success(`欢迎，${data.username}`);
-      if (navigate) {
-        navigate('/dashboard', { replace: true });
-      }
+      setTokens(data.access_token, data.refresh_token, rememberMe);
+      // 存储用户信息用于权限控制
+      const userInfo = {
+        username: data.username,
+        role: data.role,
+        role_label: data.role_label,
+        permissions: data.permissions || [],
+        display_name: data.display_name || data.username,
+        unit: data.unit || '',
+      };
+      localStorage.setItem('user_info', JSON.stringify(userInfo));
+      message.success(`欢迎，${data.display_name || data.username}`);
       onLogin?.();
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       message.error(err instanceof Error ? err.message : '登录失败');
     } finally {
@@ -75,6 +73,7 @@ export default function LoginPage({ onLogin }: Props) {
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 placeholder="admin"
+                autoComplete="username"
               />
             </div>
             <div>
@@ -86,7 +85,17 @@ export default function LoginPage({ onLogin }: Props) {
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 placeholder="admin123"
+                autoComplete="current-password"
               />
+            </div>
+            <div className="flex items-center justify-between">
+              <Checkbox
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="text-xs text-slate-500"
+              >
+                记住登录
+              </Checkbox>
             </div>
             <Button
               type="primary"

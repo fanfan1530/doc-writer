@@ -40,8 +40,8 @@ export default function SettingsPage() {
       await client.post('/models/switch', { model_id: id });
       message.success('模型已切换');
       fetchModels();
-    } catch {
-      message.error('切换失败');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '切换失败');
     } finally {
       setSwitchingId(null);
     }
@@ -52,8 +52,8 @@ export default function SettingsPage() {
       await client.post('/models/delete', { model_id: id });
       message.success('模型已删除');
       fetchModels();
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || '删除失败');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '删除失败');
     }
   };
 
@@ -69,9 +69,9 @@ export default function SettingsPage() {
       } else {
         message.warning(data.message);
       }
-    } catch {
+    } catch (err) {
       hide();
-      message.error('测试请求失败');
+      message.error(err instanceof Error ? err.message : '测试请求失败');
     }
   };
 

@@ -1,4 +1,4 @@
-/** 警务侧栏 —— 可折叠，导航切换，高对比度设计。 */
+/** 警务侧栏 —— 可折叠，导航切换，权限过滤，高对比度设计。 */
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Avatar, Dropdown } from 'antd';
 import {
@@ -7,23 +7,52 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SettingOutlined,
+  AuditOutlined,
+  TeamOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
-import { NAV_ITEMS, toMenuItems } from '../../constants/navigation';
-import { useState } from 'react';
+import { NAV_ITEMS, toMenuItems, type NavItem } from '../../constants/navigation';
+import { useState, useMemo } from 'react';
 import { clearTokens } from '../../api/client';
+import { useAppContext } from '../../context/AppContext';
 import type { MenuProps } from 'antd';
 
 const { Sider } = Layout;
+
+// 管理员专属导航项
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  { key: '/admin/users', label: '用户管理', icon: <TeamOutlined />, path: '/admin/users', permission: 'users:read' },
+  { key: '/admin/audit', label: '审计日志', icon: <AuditOutlined />, path: '/admin/audit', permission: 'audit:read' },
+  { key: '/admin/templates', label: '模板管理', icon: <FileTextOutlined />, path: '/admin/templates', permission: 'documents:read' },
+  { key: '/admin/settings', label: '系统设置', icon: <SettingOutlined />, path: '/settings', permission: 'models:read' },
+];
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { userInfo, hasPermission } = useAppContext();
 
   const selectedKey = '/' + (location.pathname.split('/')[1] || 'dashboard');
 
+  // 根据权限过滤导航项
+  const filteredNavItems = useMemo(() => {
+    const allItems = [...NAV_ITEMS];
+    // 管理员导航
+    if (hasPermission('users:read') || hasPermission('audit:read')) {
+      for (const item of ADMIN_NAV_ITEMS) {
+        if (!item.permission || hasPermission(item.permission)) {
+          allItems.push(item);
+        }
+      }
+    }
+    return allItems;
+  }, [hasPermission]);
+
   const handleLogout = () => {
     clearTokens();
+    localStorage.removeItem('user_info');
     window.dispatchEvent(new Event('auth:logout'));
     navigate('/login');
   };
@@ -31,6 +60,9 @@ export default function Sidebar() {
   const userMenuItems: MenuProps['items'] = [
     { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
   ];
+
+  const displayName = userInfo?.display_name || userInfo?.username || '用户';
+  const roleLabel = userInfo?.role_label || '未知角色';
 
   return (
     <Sider
@@ -69,9 +101,10 @@ export default function Sidebar() {
           theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
-          items={toMenuItems(NAV_ITEMS)}
+          items={toMenuItems(filteredNavItems)}
           onClick={({ key }) => navigate(key)}
           inlineCollapsed={collapsed}
+          className="sidebar-menu"
           style={{
             background: 'transparent',
             borderInlineEnd: 'none',
@@ -100,8 +133,8 @@ export default function Sidebar() {
               style={{ background: '#3b5998', flexShrink: 0 }} />
             {!collapsed && (
               <div className="flex-1 min-w-0 leading-tight">
-                <div className="text-white/90 text-xs font-medium truncate">admin</div>
-                <div className="text-white/35 text-[10px]">系统管理员</div>
+                <div className="text-white/90 text-xs font-medium truncate">{displayName}</div>
+                <div className="text-white/35 text-[10px]">{roleLabel}</div>
               </div>
             )}
           </div>

@@ -196,3 +196,69 @@ body {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(26, 58, 92, 0.08);
 }
+
+/* ── 文书打印样式 ── */
+@media print {
+  /* 隐藏非打印元素 */
+  .ant-layout-sider,
+  .ant-layout-header,
+  .ant-card-extra,
+  .ant-collapse,
+  button,
+  .ant-btn,
+  .ant-tag,
+  nav,
+  footer,
+  .sidebar-menu,
+  .quick-action-btn,
+  .stat-card,
+  [class*="Toolbar"],
+  .ant-space {
+    display: none !important;
+  }
+
+  /* 移除边距和阴影 */
+  .ant-card {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .ant-card-body {
+    padding: 0 !important;
+  }
+  body {
+    background: white !important;
+    font-size: 14pt;
+  }
+
+  /* 文书内容打印优化 */
+  .document-preview {
+    font-family: 'FangSong', '仿宋', 'STFangsong', serif !important;
+    font-size: 16pt !important;
+    line-height: 2 !important;
+    color: #000 !important;
+    background: white !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* 页面设置 */
+  @page {
+    size: A4;
+    margin: 2.54cm 3.18cm 2.54cm 3.18cm;
+  }
+
+  /* 避免元素内部分页 */
+  p, li, .document-preview {
+    orphans: 2;
+    widows: 2;
+  }
+  .keep-together {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
