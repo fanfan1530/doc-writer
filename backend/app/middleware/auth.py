@@ -23,6 +23,9 @@ def _is_public(path: str) -> bool:
         return True
     if path.startswith("/api/generation/templates"):
         return True
+    # SPA fallback: non-API paths are frontend routes served by the catch-all
+    if not path.startswith("/api/") and path not in ("/docs", "/openapi.json"):
+        return True
     return False
 
 

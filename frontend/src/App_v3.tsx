@@ -62,7 +62,7 @@ export default function AppV3() {
           }}
         >
           <AppProvider>
-            <BrowserRouter>
+            <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
