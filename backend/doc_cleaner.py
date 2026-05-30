@@ -670,7 +670,7 @@ class DocCleaner:
         conn = sqlite3.connect(str(DB_PATH))
         existing = set()
         for row in conn.execute(
-            "SELECT doc_type FROM document_templates WHERE category='刑事' AND template_text LIKE '%{{%}}%'"
+            "SELECT doc_type FROM document_templates WHERE template_text LIKE '%{{%}}%'"
         ):
             existing.add(row[0])
         conn.close()

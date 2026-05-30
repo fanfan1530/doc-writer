@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: '/docwriter/api',
   timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -37,7 +37,7 @@ client.interceptors.response.use(
         if (!isRefreshing) {
           isRefreshing = true;
           try {
-            const { data } = await axios.post('/api/auth/refresh', { refresh_token: refreshToken });
+            const { data } = await axios.post('/docwriter/api/auth/refresh', { refresh_token: refreshToken });
             storage.setItem('access_token', data.access_token);
             storage.setItem('refresh_token', data.refresh_token);
             onRefreshed(data.access_token);

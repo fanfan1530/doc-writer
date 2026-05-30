@@ -1,5 +1,6 @@
 """JWT 认证工具：密码哈希、Token 签发与验证。"""
 
+import hashlib
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -15,11 +16,20 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_DAYS", "7"))
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _prehash(password: str) -> str:
+    """SHA-256 pre-hash to bypass bcrypt's 72-byte limit."""
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(_prehash(password))
 
 
 def verify_password(plain: str, hashed: str) -> bool:
+    # Try pre-hashed first (bcrypt 72-byte workaround)
+    if pwd_context.verify(_prehash(plain), hashed):
+        return True
+    # Fallback: try raw password for legacy hashes (pre-SHA256)
     return pwd_context.verify(plain, hashed)
 
 

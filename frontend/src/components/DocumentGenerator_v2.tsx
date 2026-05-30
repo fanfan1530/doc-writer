@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Card, Select, Segmented, Divider, Space, Tag, Typography, Alert, App,
+  Card, Select, Segmented, Divider, Space, Typography, Alert, App,
 } from 'antd';
 import {
   ThunderboltOutlined, EditOutlined, WarningOutlined,
@@ -151,21 +151,6 @@ export default function DocumentGeneratorV2({
       </div>
 
       <div className="flex-shrink-0">
-        {effectiveResult?.suggested_laws && effectiveResult.suggested_laws.length > 0 && (
-          <>
-            <Divider className="!my-2" />
-            <div>
-              <Text strong className="text-xs text-slate-400">推荐法条</Text>
-              <Space wrap className="mt-1" size={[2, 2]}>
-                {effectiveResult.suggested_laws.map((law, i) => (
-                  <Tag key={i} color="blue" className="text-xs">
-                    {law.length > 60 ? law.substring(0, 60) + '...' : law}
-                  </Tag>
-                ))}
-              </Space>
-            </div>
-          </>
-        )}
         {deadlineWarnings.length > 0 && (
           <>
             <Divider className="!my-2" />

@@ -2,12 +2,10 @@ __pycache__
 *.pyc
 *.pyo
 .env
-*.db
 .venv
 venv
 node_modules
 frontend/node_modules
-frontend/dist
 .git
 .gitignore
 *.md
