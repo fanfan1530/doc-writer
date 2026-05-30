@@ -42,7 +42,7 @@ export default function AppLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const handleNotification = useCallback(() => {
     // WebSocket 推送新通知时刷新未读数
-    fetch('/api/notifications/unread-count', {
+    fetch('/docwriter/api/notifications/unread-count', {
       headers: { Authorization: `Bearer ${getAccessToken()}` },
     }).then(r => r.json()).then(d => setUnreadCount(d.count || 0)).catch(() => {});
   }, []);
@@ -50,7 +50,7 @@ export default function AppLayout() {
   // 初始化未读数 + 实时通知
   useEffect(() => {
     if (!loggedIn) return;
-    fetch('/api/notifications/unread-count', {
+    fetch('/docwriter/api/notifications/unread-count', {
       headers: { Authorization: `Bearer ${getAccessToken()}` },
     }).then(r => r.json()).then(d => setUnreadCount(d.count || 0)).catch(() => {});
   }, [loggedIn]);

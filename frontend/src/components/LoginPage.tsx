@@ -22,7 +22,7 @@ export default function LoginPage({ onLogin }: { onLogin?: () => void }) {
     }
     setLoading(true);
     try {
-      const resp = await fetch('/api/auth/login', {
+      const resp = await fetch('/docwriter/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password }),

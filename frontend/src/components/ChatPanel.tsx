@@ -199,7 +199,7 @@ export default function ChatPanel({ docContext = '', docType = '', onDocumentMod
 
     try {
       const token = getAccessToken();
-      const resp = await fetch('/api/copilot/chat', {
+      const resp = await fetch('/docwriter/api/copilot/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
