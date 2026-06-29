@@ -464,13 +464,7 @@ workflow:
 
             如果目标文书是搜查笔录：
 
-            - 必须提取搜查笔录字段：搜查开始时间、结束时间、搜查地点、搜查人员姓名及单位、当事人姓名/性别/住址、被搜查对象、搜查证签发机关及编号、见证人姓名、搜查过程和结果、搜查照片说明、办案单位、办案人员。
-
-            - search_process只写”过程和结果”正文，包括侦查人员出示警官证和搜查证、见证人在场、依法搜查的过程、搜查发现的具体物品及特征（如手机品牌型号IMEI等）、被搜查人指认情况、扣押情况。
-
-            - search_basis写搜查依据段：”根据XX年XX月XX日XX签发的XX搜查字[XXXX]XX号搜查证，在见证人XX的见证下，对XX的XX进行搜查。”
-
-            - search_results列出搜查发现的具体物品，一行一条。
+            - 除通用字段外，额外提取：search_phone_desc（手机品牌、型号、外观描述，如未提及则填null）、search_imei1和search_imei2（两个IMEI码，笔录中未出现则填null）；其余搜查笔录内容为固定模板格式，均由代码自动生成。
 
 
             如果目标文书是入所表：
@@ -513,15 +507,7 @@ workflow:
             :\"见证人住址\",\n  \"identification_object\":\"辨认对象\",\n  \"identification_purpose\"\
             :\"辨认目的\",\n  \"identification_process\":\"辨认过程正文\",\n  \"identification_results\"\
             :[\"辨认结果逐行\"],\n  \"handling_officers\":\"办案人员\",\n  \"recognizer_name\"\
-            :\"辨认人姓名备用字段\",\n  \"search_time_start\":\"搜查开始时间\",\n  \"\
-            search_time_end\":\"搜查结束时间\",\n  \"search_location\":\"搜查地点\",\n  \"\
-            search_officer_names\":\"搜查人员姓名\",\n  \"search_officer_unit\":\"搜查人员单位\",\n  \"\
-            search_party_name\":\"当事人姓名\",\n  \"search_party_gender\":\"当事人性别\",\n  \"\
-            search_party_address\":\"当事人住址\",\n  \"search_object\":\"被搜查对象\",\n  \"\
-            search_warrant_agency\":\"搜查证签发机关\",\n  \"search_warrant_number\":\"搜查证编号\",\n  \"\
-            search_witness_name\":\"见证人姓名\",\n  \"search_basis\":\"搜查依据段\",\n  \"\
-            search_process\":\"搜查过程和结果\",\n  \"search_results\":[\"搜查结果逐行\"],\n  \"\
-            search_unit\":\"办案单位\",\n  \"search_officers\":\"办案人员\",\n  \"entry_date\":\"入所时间\",\n  \"detention_date\":\"拘留起始日期\"\
+            :\"辨认人姓名备用字段\",\n  \"search_phone_desc\":\"搜查发现的手机描述\",\n  \"search_imei1\":\"手机IMEI1\",\n  \"search_imei2\":\"手机IMEI2\",\n  \"entry_date\":\"入所时间\",\n  \"detention_date\":\"拘留起始日期\"\
             ,\n  \"detention_period\":\"拘留期限天数\",\n  \"case_name\":\"案由/案别\",\n  \"\
             birth_date\":\"出生日期\",\n  \"ethnicity\":\"民族\",\n  \"education\":\"文化程度\"\
             ,\n  \"marital_status\":\"婚姻状况\",\n  \"native_place\":\"籍贯\",\n  \"household_register\"\
@@ -612,20 +598,7 @@ workflow:
             4. 控制在120到450字。
 
 
-            如果目标文书是搜查笔录：
-
-            1. 只输出”过程和结果”段正文，不写”过程和结果：”标题，不写签名栏。
-
-            2. 写清侦查人员出示警官证和搜查证、见证人在场、依法对何对象进行搜查、搜查发现的具体物品（品牌、型号、IMEI等特征）、被搜查人指认、扣押情况。
-
-            3. 末尾写”在搜查过程中没有损坏任何物品，侦查人员对以上搜出的涉案物品依法进行清点、扣押，清点数量、扣押物品详见《扣押清单》。”然后”搜查过程进行拍照，至此搜查结束。”
-
-            4. 不要写行政处罚事实段、法律适用和处罚决定。
-
-            5. 控制在150到500字。
-
-
-            如果目标文书是入所表：
+            如果目标文书是搜查笔录：\n\n            1. 输出罪名名称即可，例如"诈骗罪"、"盗窃罪"等。\n\n            2. 不要生成任何段落。搜查笔录的过程段为固定模板，由代码自动填充。\n\n\n            如果目标文书是入所表：
 
             1. 只输出信息卡”违法事实”栏可使用的一段简短事实。
 
@@ -997,7 +970,7 @@ workflow:
           \n    return '\\n\\n'.join([\n        '前科证明',\n        f'{name}，性别：{gender}\
           \ ，出生日期：{birth}，                  身份证件种类及号码：{id_type}{id_number}，户籍住址：{household_address}。',\n\
           \        result_line,\n        '特此证明。',\n        agency,\n        issue_date,\n\
-          \    ])\n\n\n\ndef _build_search_record(elements: dict, case_text: str, polish_text: str, violation: str) -> str:\n    agency = _first(elements.get('search_officer_unit'), elements.get('police_station'), elements.get('search_unit')) or '藤县公安局'\n    start_time = _normalize_datetime(_first(elements.get('search_time_start'), elements.get('case_date')))\n    end_time = _normalize_datetime(_first(elements.get('search_time_end'), start_time))\n    location = _first(elements.get('search_location'), elements.get('case_location')) or f'{agency}办案中心'\n    officer_names = _first(elements.get('search_officer_names'), elements.get('officer_name'))\n    officer_unit = _first(elements.get('search_officer_unit'), agency)\n    party_name = _first(elements.get('search_party_name'), elements.get('party_name'))\n    party_gender = _first(elements.get('search_party_gender'), elements.get('party_gender'))\n    party_address = _first(elements.get('search_party_address'), elements.get('party_address'))\n    search_object = _first(elements.get('search_object')) or (f'嫌疑人{party_name}的人身及随身物品' if party_name else '涉案人员的人身及随身物品')\n    warrant_agency = _first(elements.get('search_warrant_agency'), agency)\n    warrant_number = _first(elements.get('search_warrant_number')) or '______字[____]_____号'\n    witness_name = _first(elements.get('search_witness_name'), elements.get('witness_name'))\n    safe_date = _format_chinese_date(start_time)\n    basis = _first(elements.get('search_basis'))\n    if not basis:\n        basis = f'根据{safe_date}{warrant_agency}签发的{warrant_number}搜查证，在见证人{witness_name or \"________\"}的见证下，对本案嫌疑人{party_name or \"________\"}的{search_object}进行搜查。'\n    process = _compact_search_process(_first(polish_text, elements.get('search_process'), elements.get('process_result'), case_text), party_name, violation)\n    results = _search_item_summary(elements.get('search_results'))\n    photo_caption = _first(elements.get('photo_caption'))\n    if not photo_caption and results:\n        photo_caption = chr(10).join(str(r) for r in (results if isinstance(results, (list, tuple)) else [results]) if r)\n    search_unit = _first(elements.get('search_unit'), elements.get('handling_unit'), agency)\n    search_officers = _first(elements.get('search_officers'), elements.get('handling_officers'), officer_names)\n    footer_date = _footer_date(_first(elements.get('footer_date'), start_time, date.today().strftime('%Y年%m月%d日')))\n\n    lines = [\n        '搜 查 笔 录',\n        f'时间:{start_time}至{end_time}' if start_time and end_time else f'时间:{start_time or end_time}',\n        f'搜查地点：{location}',\n        f'搜查人员姓名、单位:                {officer_names or \"\"}、               {officer_unit}',\n        f'当事人姓名：{party_name or \"\"}，{party_gender or \"\"}，{party_address or \"\"}',\n        f'被搜查对象：{search_object}',\n        basis,\n        f'过程和结果：{process}',\n        '在搜查过程中没有损坏任何物品，侦查人员对以上搜出的涉案物品依法进行清点、扣押，清点数量、扣押物品详见《扣押清单》。',\n        '搜查过程进行拍照，至此搜查结束。',\n        f'侦查人员：{officer_names or \"\"}                       记录人：',\n        f'当事人：{party_name or \"\"}                         见证人：{witness_name or \"\"}',\n        '',\n        '搜 查 照 片（一）',\n        photo_caption,\n        f'办案单位：{search_unit}                         办案人员：{search_officers or \"\"}                         时间：{footer_date}',\n    ]\n    return chr(10).join(lines) + chr(10)\n\n\ndef _compact_search_process(text: str, party_name: str, violation: str) -> str:\n    text = _strip_noise(text or '').replace(chr(13)+chr(10), chr(10)).replace(chr(13), chr(10))\n    text = re.sub(r'过程和结果[:：]?', '', text).strip()\n    text = re.sub(r'其行为涉嫌.*?(违法行为|犯罪|罪)。?', '', text)\n    text = re.sub(r'在搜查过程中没有损坏任何物品.*', '', text)\n    text = re.sub(r'搜查过程进行拍照.*', '', text)\n    if not text:\n        subject = party_name or '被搜查人'\n        if violation:\n            return f'侦查人员将涉嫌{violation}的犯罪嫌疑人{subject}传唤到办案中心，为了搜集证据、固定犯罪事实，民警经出示警官证、搜查证，在见证人的见证下，依法对{subject}的人身及随身物品进行了搜查。经搜查发现相关涉案物品，民警将上述物品交{subject}本人进行了指认，并依法对以上物品进行清点、扣押。'\n        else:\n            return f'民警经出示警官证、搜查证，在见证人的见证下，依法对{subject}的人身及随身物品进行了搜查。经搜查发现相关涉案物品。'\n    text = re.sub(r'\\s+', '', text)\n    if len(text) > 800:\n        text = text[:800].rstrip('，；、。') + '。'\n    if not text.endswith('。'):\n        text += '。'\n    return text\n\n\ndef _search_item_summary(value) -> list:\n    if isinstance(value, (list, tuple)):\n        raw_lines = [str(item).strip() for item in value if str(item).strip()]\n    else:\n        text = str(value or '').strip()\n        raw_lines = [line.strip() for line in text.replace(chr(13)+chr(10), chr(10)).replace(chr(13), chr(10)).split(chr(10)) if line.strip()]\n        if len(raw_lines) <= 1 and text:\n            raw_lines = re.findall(r'[^。；;]+[。；;]?', text)\n    return [line for line in raw_lines if line and len(line) > 2]\ndef main(\n    case_text: str = '',\n    classify_text: str\
+          \    ])\n\n\n\ndef _build_search_record(elements: dict, case_text: str, polish_text: str, violation: str) -> str:\n    party_name = _first(elements.get(\"party_name\"), elements.get(\"search_party_name\"))\n    unit = _first(elements.get(\"police_station\"), elements.get(\"handling_unit\")) or \"藤县公安局\"\n    phone_desc = _first(elements.get(\"search_phone_desc\")) or \"一台手机\"\n    imei1 = _first(elements.get(\"search_imei1\"))\n    imei2 = _first(elements.get(\"search_imei2\"))\n    violation_name = _normalize_violation(elements.get(\"violation_type\") or violation)\n    if not violation_name:\n        violation_name = polish_text.strip()[:30] if polish_text else \"\"\n    if not party_name:\n        party_name = \"________\"\n    if not unit:\n        unit = \"________\"\n    if not phone_desc or phone_desc in (\"null\", \"None\", \"\"):\n        phone_desc = \"一台手机\"\n    if imei1 and imei1 not in (\"null\", \"None\", \"\"):\n        imei_part = f\"型号为:{phone_desc} IMEI1:{imei1}、IMEI2:{imei2 or \\\"________________\\\"}\"\n    else:\n        imei_part = \"IMEI1:________________、IMEI2:________________\"\n    if violation_name:\n        crime_clause = f\"涉嫌{violation_name}的\"\n    else:\n        crime_clause = \"\"\n    process = (\n        f\"侦查人员将{crime_clause}犯罪嫌疑人{party_name}传唤到{unit}办案中心，\"\n        f\"为了搜集证据、固定犯罪事实，民警经出示警官证、搜查证，\"\n        f\"在见证人的见证下，依法对{party_name}的人身以及随身物品进行了搜查。\"\n        f\"经搜查发现，民警在{party_name}的人身上搜查出一台{phone_desc}，{imei_part}。\"\n        f\"民警将上述物品交{party_name}本人进行了指认，并依法对以上物品进行清点、扣押。\"\n    )\n    start_time = _normalize_datetime(_first(elements.get(\"case_date\")))\n    footer_date = _footer_date(start_time or date.today().strftime(\"%Y年%m月%d日\"))\n    officer_names = _first(elements.get(\"officer_name\"), elements.get(\"handling_officers\"))\n    witness_name = _first(elements.get(\"witness_name\"))\n    recorder_name = _first(elements.get(\"recorder_name\"))\n    lines = [\n        \"搜 查 笔 录\",\n        f\"时间:{start_time or \"________\"}\",\n        f\"搜查地点：{unit}办案中心\",\n        f\"搜查人员姓名、单位:                {officer_names or \"\"}、               {unit}\",\n        f\"当事人姓名：{party_name}\",\n        f\"被搜查对象：嫌疑人{party_name}的人身及随身物品\",\n        f\"根据{footer_date}{unit}签发的___搜查字[____]_____号搜查证，在见证人{witness_name or \"________\"}的见证下，对本案嫌疑人{party_name}的人身及随身物品进行搜查。\",\n        f\"过程和结果：{process}\",\n        \"在搜查过程中没有损坏任何物品，侦查人员对以上搜出的涉案物品依法进行清点、扣押，清点数量、扣押物品详见《扣押清单》。\",\n        \"搜查过程进行拍照，至此搜查结束。\",\n        f\"侦查人员：{officer_names or \"\"}                       记录人：{recorder_name or \"\"}\",\n        f\"当事人：{party_name}                         见证人：{witness_name or \"\"}\",\n        \"\",\n        \"搜 查 照 片（一）\",\n        f\"经搜查发现，民警在{party_name}的人身上搜查出一台{phone_desc}，{imei_part.replace(chr(92)+chr(92)+chr(92)+chr(34), chr(92)+chr(34))}\",\n        f\"办案单位：{unit}                         办案人员：{officer_names or \"\"}                         时间：{footer_date}\",\n    ]\n    return chr(10).join(lines) + chr(10)\ndef main(\n    case_text: str = '',\n    classify_text: str\
           \ = '',\n    extract_text: str = '',\n    polish_text: str = '',\n    selected_doc_type:\
           \ str = ''\n) -> dict:\n    classified_doc_type = ''\n    case_nature =\
           \ ''\n    try:\n        classify = _extract_json_block(classify_text)\n\
