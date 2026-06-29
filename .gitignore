@@ -11,6 +11,8 @@ __pycache__/
 
 # Generated/output files
 *.docx
+!*_template.docx
+!*_templates/
 *.jpeg
 *.jpg
 *.png

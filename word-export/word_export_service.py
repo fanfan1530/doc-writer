@@ -34,6 +34,9 @@ IDENTIFICATION_TEMPLATE_PATH = Path(
 CRIMINAL_RECORD_TEMPLATE_PATH = Path(
     os.environ.get("WORD_EXPORT_CRIMINAL_RECORD_TEMPLATE", "work/criminal_record_template.docx")
 ).resolve()
+SEARCH_RECORD_TEMPLATE_PATH = Path(
+    os.environ.get("WORD_EXPORT_SEARCH_RECORD_TEMPLATE", "work/search_record_template.docx")
+).resolve()
 ENTRY_MATERIALS_TEMPLATE_DIR = Path(
     os.environ.get("WORD_EXPORT_ENTRY_MATERIALS_TEMPLATE_DIR", "work/entry_materials_docx_templates")
 ).resolve()
@@ -153,6 +156,24 @@ CRIMINAL_RECORD_DEFAULT_SLOT_VALUES = {
     "statement": "特此证明。",
     "agency": "广西藤县公安局埌南派出所",
     "issue_date": time.strftime("%Y年%m月%d日"),
+}
+
+SEARCH_RECORD_DEFAULT_SLOT_VALUES = {
+    "title": "搜 查 笔 录",
+    "time": "时间：______年__月__日__时__分至______年__月__日__时__分",
+    "location": "搜查地点：",
+    "officers": "搜查人员姓名、单位:                、               公安局",
+    "party": "当事人姓名：",
+    "object": "被搜查对象：",
+    "basis": "根据______年__月__日______签发的___搜查字[____]_____号搜查证，在见证人________的见证下，对本案嫌疑人________的________进行搜查。",
+    "process_1": "过程和结果：",
+    "process_2": "在搜查过程中没有损坏任何物品，侦查人员对以上搜出的涉案物品依法进行清点、扣押，清点数量、扣押物品详见《扣押清单》。",
+    "process_3": "搜查过程进行拍照，至此搜查结束。",
+    "sign_officers": "侦查人员：                       记录人：",
+    "sign_party": "当事人：                         见证人：",
+    "photo_title": "搜 查 照 片（一）",
+    "photo_caption": "",
+    "footer": "办案单位：          办案人员：          时间：",
 }
 
 ENTRY_MATERIALS_FILENAMES = [
@@ -1356,6 +1377,101 @@ def _build_entry_materials_docx(template_path: Path, data: dict[str, str]) -> by
         return buffer.getvalue()
 
 
+def _extract_search_record_slots(content: str) -> dict[str, str]:
+    lines = _check_content_lines(content)
+    slots = dict(SEARCH_RECORD_DEFAULT_SLOT_VALUES)
+    if not lines:
+        return slots
+
+    for key, prefixes in {
+        "time": ("时间",),
+        "location": ("搜查地点",),
+        "officers": ("搜查人员姓名、单位",),
+        "party": ("当事人姓名",),
+        "object": ("被搜查对象",),
+        "basis": ("根据",),
+        "process_1": ("过程和结果",),
+        "photo_caption": ("照片说明", "经搜查发现"),
+        "footer": ("办案单位",),
+    }.items():
+        line = _first_line(lines, *prefixes)
+        if line:
+            slots[key] = line
+
+    for key, prefix, exclusions in (
+        ("sign_officers", "侦查人员", ()),
+        ("sign_party", "当事人", ("当事人姓名",)),
+    ):
+        for line in lines:
+            if _line_starts(line, prefix) and not any(_line_starts(line, item) for item in exclusions):
+                slots[key] = line.strip()
+                break
+
+    return slots
+
+
+def build_search_record_docx(content: str, photos: object = None) -> bytes:
+    photo_bytes = _load_photo_bytes(photos)
+    with zipfile.ZipFile(SEARCH_RECORD_TEMPLATE_PATH, "r") as template:
+        root = ET.fromstring(template.read("word/document.xml"))
+        body = root.find(f"{W}body")
+        if body is None:
+            return build_simple_docx(content)
+
+        paragraphs = [node for node in list(body) if node.tag == f"{W}p"]
+        if photo_bytes:
+            _trim_inline_images(root, len(photo_bytes))
+        else:
+            _remove_inline_images(root)
+
+        slots = _extract_search_record_slots(content)
+        mapping = {
+            0: "title",
+            1: "time",
+            2: "location",
+            3: "officers",
+            4: "party",
+            5: "object",
+            6: "basis",
+            7: "process_1",
+            8: "process_2",
+            9: "process_3",
+            10: "sign_officers",
+            11: "sign_party",
+            13: "photo_title",
+            16: "photo_caption",
+            25: "footer",
+        }
+        for index, slot in mapping.items():
+            if index < len(paragraphs):
+                _set_paragraph_text(paragraphs[index], slots.get(slot, ""))
+
+        document_xml = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        keep_image_ids = _collect_image_relationship_ids(root)
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as output:
+            for item in template.infolist():
+                if item.filename == "word/document.xml":
+                    output.writestr(item, document_xml)
+                elif item.filename == "word/_rels/document.xml.rels":
+                    if photo_bytes:
+                        output.writestr(item, _filter_image_relationships(template.read(item.filename), keep_image_ids))
+                    else:
+                        output.writestr(item, _strip_image_relationships(template.read(item.filename)))
+                elif item.filename.startswith("word/media/"):
+                    if item.filename.endswith("image1.jpeg") and len(photo_bytes) >= 1:
+                        output.writestr(item, photo_bytes[0])
+                    elif item.filename.endswith("image2.jpeg") and len(photo_bytes) >= 2:
+                        output.writestr(item, photo_bytes[1])
+                    elif photo_bytes:
+                        continue
+                    else:
+                        continue
+                else:
+                    output.writestr(item, template.read(item.filename))
+        return buffer.getvalue()
+
+
 def build_entry_materials_zip(elements: object) -> bytes:
     data = _entry_replacement_data(_parse_elements_payload(elements))
     missing = [name for name in ENTRY_MATERIALS_FILENAMES if not (ENTRY_MATERIALS_TEMPLATE_DIR / name).exists()]
@@ -1392,6 +1508,12 @@ def build_docx(content: str, doc_type: str = "", photos: object = None) -> bytes
             return build_criminal_record_docx(content)
         except Exception as exc:
             print(f"criminal record template export failed: {exc}")
+
+    if "搜查" in str(doc_type or "") and SEARCH_RECORD_TEMPLATE_PATH.exists():
+        try:
+            return build_search_record_docx(content, photos)
+        except Exception as exc:
+            print(f"search record template export failed: {exc}")
 
     if TEMPLATE_PATH.exists():
         try:
@@ -1488,7 +1610,7 @@ class Handler(BaseHTTPRequestHandler):
         doc_type = str(payload.get("doc_type") or payload.get("document_type") or "").strip()
         photos = payload.get("photos") or payload.get("images") or []
         workflow_run_id = payload.get("workflow_run_id") or payload.get("run_id") or ""
-        if not photos and "检查" in doc_type and workflow_run_id:
+        if not photos and ("检查" in doc_type or "搜查" in doc_type) and workflow_run_id:
             photos = _photos_from_workflow_run(workflow_run_id)
 
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
