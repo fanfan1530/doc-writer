@@ -1,0 +1,21 @@
+services:
+  word-export:
+    image: python:3.12-slim
+    container_name: dify-word-export
+    working_dir: /workspace
+    command: python /workspace/service/word_export_service.py
+    restart: unless-stopped
+    ports:
+      - "${WORD_EXPORT_PORT:-8123}:8123"
+    environment:
+      WORD_EXPORT_PORT: "8123"
+      WORD_EXPORT_PUBLIC_BASE_URL: "${WORD_EXPORT_PUBLIC_BASE_URL:-http://127.0.0.1:8123}"
+      WORD_EXPORT_TEMPLATE: /workspace/service/templates/reference_layout.docx
+      WORD_EXPORT_CHECK_TEMPLATE: /workspace/service/templates/check_record_template.docx
+      WORD_EXPORT_IDENTIFICATION_TEMPLATE: /workspace/service/templates/identification_record_template.docx
+      WORD_EXPORT_CRIMINAL_RECORD_TEMPLATE: /workspace/service/templates/criminal_record_template.docx
+      WORD_EXPORT_ENTRY_MATERIALS_TEMPLATE_DIR: /workspace/service/templates/entry_materials_docx_templates
+      WORD_EXPORT_OUTPUT_DIR: /workspace/outputs/word_exports
+    volumes:
+      - ./service:/workspace/service:ro
+      - ./outputs:/workspace/outputs

@@ -1,0 +1,2957 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>警务文书工作流</title>
+  <style>
+    :root {
+      --bg: #f5f5f2;
+      --paper: #ffffff;
+      --ink: #101010;
+      --muted: #606060;
+      --line: #d8d8d2;
+      --soft: #ecece7;
+      --dark: #151515;
+      --radius: 6px;
+      --content: min(1520px, calc(100vw - 64px));
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .site-shell {
+      min-height: 100vh;
+    }
+
+    .topbar {
+      width: var(--content);
+      height: 84px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--ink);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 34px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .nav a {
+      transition: color 160ms ease;
+    }
+
+    .nav a:hover {
+      color: var(--ink);
+    }
+
+    .status {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--ink);
+    }
+
+    .hero {
+      width: var(--content);
+      margin: 0 auto;
+      padding: 104px 0 88px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(420px, 0.72fr);
+      gap: 96px;
+      align-items: end;
+    }
+
+    .eyebrow {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .hero h1 {
+      max-width: 930px;
+      margin: 0;
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: clamp(64px, 8vw, 142px);
+      line-height: 0.96;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .hero h1 span {
+      display: block;
+      color: #4b4b49;
+      font-weight: 400;
+    }
+
+    .hero-copy {
+      max-width: 650px;
+      margin: 38px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.9;
+    }
+
+    .hero-actions {
+      margin-top: 48px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .api-panel {
+      max-width: 760px;
+      margin-top: 34px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+
+    .api-panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+
+    .api-panel-head strong {
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 22px;
+      font-weight: 500;
+    }
+
+    .api-panel-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .api-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .api-note {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .button {
+      height: 48px;
+      padding: 0 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: #fff;
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+    }
+
+    .button.secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .button:hover {
+      background: #2b2b2b;
+      border-color: #2b2b2b;
+    }
+
+    .button.secondary:hover {
+      color: var(--paper);
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .specimen {
+      margin: 0;
+      min-height: 620px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 42px 38px;
+      box-shadow: 0 26px 80px rgba(15, 15, 15, 0.08);
+    }
+
+    .specimen-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 26px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .document-preview {
+      padding-top: 44px;
+    }
+
+    .doc-title {
+      margin: 0 0 46px;
+      text-align: center;
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .preview-row {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 20px;
+      align-items: center;
+      min-height: 34px;
+      margin-bottom: 14px;
+      color: #555;
+      font-size: 12px;
+    }
+
+    .line {
+      height: 1px;
+      background: #c9c9c3;
+    }
+
+    .line.short {
+      width: 62%;
+    }
+
+    .preview-body {
+      margin-top: 40px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .preview-body .line {
+      height: 9px;
+      background: #eeeeea;
+    }
+
+    .preview-body .line:nth-child(2) {
+      width: 91%;
+    }
+
+    .preview-body .line:nth-child(4) {
+      width: 74%;
+    }
+
+    .preview-stamp {
+      width: 92px;
+      height: 92px;
+      margin: 70px 22px 0 auto;
+      border: 1px solid #b7b7b1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #8b8b85;
+      font-size: 12px;
+    }
+
+    .section {
+      width: var(--content);
+      margin: 0 auto;
+      padding: 92px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-header {
+      display: grid;
+      grid-template-columns: 0.36fr 1fr;
+      gap: 64px;
+      margin-bottom: 56px;
+    }
+
+    .section-kicker {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .section-title {
+      max-width: 980px;
+      margin: 0;
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: clamp(40px, 5vw, 84px);
+      line-height: 1.08;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .workflow-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.42fr);
+      gap: 40px;
+      align-items: stretch;
+    }
+
+    .form-surface {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 38px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 26px;
+    }
+
+    .field {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field[hidden] {
+      display: none;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      height: 50px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfbf8;
+      color: var(--ink);
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    select:focus {
+      border-color: var(--ink);
+      background: var(--paper);
+    }
+
+    .upload-zone {
+      min-height: 164px;
+      border: 1px dashed #adada7;
+      border-radius: var(--radius);
+      background: #fbfbf8;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .upload-zone strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--ink);
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .upload-zone span {
+      font-size: 13px;
+    }
+
+    .file-name {
+      display: block;
+      margin-top: 10px;
+      color: var(--ink);
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    .upload-zone input {
+      display: none;
+    }
+
+    .photo-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .photo-tile {
+      min-height: 92px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: #fbfbf8;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .photo-tile span {
+      display: block;
+      padding: 0 10px;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    .photo-tile input {
+      display: none;
+    }
+
+    .form-footer {
+      margin-top: 34px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding-top: 26px;
+    }
+
+    .form-note {
+      margin: 0;
+      max-width: 560px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .run-status {
+      margin-top: 24px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfbf8;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .run-status strong {
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .run-status.error {
+      border-color: #a8a8a2;
+      color: var(--ink);
+      background: #f1f1ec;
+    }
+
+    .side-brief {
+      background: var(--dark);
+      color: #f4f4ef;
+      border-radius: var(--radius);
+      padding: 34px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .side-brief h3 {
+      margin: 0;
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 34px;
+      line-height: 1.22;
+      font-weight: 500;
+    }
+
+    .brief-list {
+      display: grid;
+      gap: 24px;
+      margin-top: 70px;
+    }
+
+    .brief-item {
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .brief-item b {
+      display: block;
+      margin-bottom: 8px;
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    .brief-item span {
+      color: #b7b7b0;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .project-card {
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 30px;
+      background: transparent;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      transition: background 160ms ease;
+    }
+
+    .project-card:hover {
+      background: #ffffff;
+    }
+
+    .project-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .project-card h3 {
+      max-width: 360px;
+      margin: 58px 0 20px;
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 30px;
+      line-height: 1.25;
+      font-weight: 500;
+    }
+
+    .project-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.85;
+    }
+
+    .result-band {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
+      gap: 74px;
+      align-items: center;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 44px;
+    }
+
+    .result-title {
+      margin: 0 0 22px;
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: clamp(34px, 4vw, 64px);
+      line-height: 1.08;
+      font-weight: 500;
+    }
+
+    .result-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.9;
+    }
+
+    .download-strip {
+      display: grid;
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+
+    .download-row {
+      min-height: 70px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 24px;
+      background: #fbfbf8;
+      padding: 0 22px;
+    }
+
+    .download-row strong {
+      font-weight: 500;
+    }
+
+    .download-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .result-document {
+      margin-top: 26px;
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfbf8;
+      padding: 22px;
+      color: var(--ink);
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 15px;
+      line-height: 1.9;
+      white-space: pre-wrap;
+    }
+
+    .empty-result {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .footer {
+      width: var(--content);
+      margin: 0 auto;
+      padding: 48px 0 56px;
+      display: flex;
+      justify-content: space-between;
+      gap: 28px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1100px) {
+      :root {
+        --content: min(100vw - 40px, 920px);
+      }
+
+      .topbar {
+        grid-template-columns: 1fr auto;
+      }
+
+      .nav {
+        display: none;
+      }
+
+      .hero,
+      .workflow-panel,
+      .result-band {
+        grid-template-columns: 1fr;
+        gap: 42px;
+      }
+
+      .specimen {
+        min-height: auto;
+      }
+
+      .section-header {
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+
+      .project-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      :root {
+        --content: calc(100vw - 28px);
+      }
+
+      .topbar {
+        height: 72px;
+      }
+
+      .brand span,
+      .status {
+        display: none;
+      }
+
+      .hero {
+        padding: 62px 0 58px;
+      }
+
+      .hero h1 {
+        font-size: 52px;
+      }
+
+      .hero-copy {
+        font-size: 15px;
+      }
+
+      .section {
+        padding: 64px 0;
+      }
+
+      .form-surface,
+      .side-brief,
+      .result-band {
+        padding: 24px;
+      }
+
+      .form-grid,
+      .api-fields,
+      .photo-row,
+      .project-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-footer,
+      .footer {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .project-card {
+        min-height: 260px;
+      }
+    }
+
+    /* Simplified workbench layout */
+    .topbar {
+      height: 70px;
+    }
+
+    .nav a[href="#documents"] {
+      display: none;
+    }
+
+    .hero {
+      padding: 64px 0 34px;
+      grid-template-columns: 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .hero h1 {
+      max-width: 760px;
+      font-size: clamp(42px, 6vw, 86px);
+      line-height: 1.02;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin-top: 24px;
+      font-size: 16px;
+      line-height: 1.8;
+    }
+
+    .hero-actions {
+      margin-top: 28px;
+    }
+
+    .hero-actions a[href="#documents"] {
+      display: none;
+    }
+
+    .api-panel {
+      margin-top: 28px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    .specimen,
+    #documents,
+    .side-brief,
+    .section-header {
+      display: none;
+    }
+
+    .section {
+      padding: 34px 0;
+    }
+
+    #workflow {
+      border-top: 0;
+    }
+
+    .workflow-panel {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .form-surface {
+      padding: 30px;
+    }
+
+    .upload-zone {
+      min-height: 132px;
+    }
+
+    .form-footer {
+      align-items: center;
+    }
+
+    .result-band {
+      grid-template-columns: 0.72fr 1fr;
+      gap: 34px;
+      padding: 30px;
+    }
+
+    .result-title {
+      font-size: clamp(28px, 3vw, 42px);
+    }
+
+    .result-copy {
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .footer {
+      padding: 28px 0 36px;
+    }
+
+    @media (max-width: 900px) {
+      .result-band {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cleaner header and intro */
+    .topbar {
+      grid-template-columns: 1fr auto;
+      height: 64px;
+    }
+
+    .brand {
+      gap: 10px;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+    }
+
+    .nav {
+      display: none;
+    }
+
+    .status {
+      font-size: 13px;
+    }
+
+    .hero {
+      padding: 48px 0 24px;
+    }
+
+    .eyebrow {
+      display: none;
+    }
+
+    .hero h1 {
+      max-width: 680px;
+      font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      font-size: clamp(32px, 4.6vw, 54px);
+      line-height: 1.18;
+      font-weight: 600;
+    }
+
+    .hero h1 span {
+      display: inline;
+      margin-left: 12px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .hero-copy {
+      max-width: 620px;
+      margin-top: 16px;
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    .hero-actions {
+      margin-top: 22px;
+    }
+
+    .hero-actions .secondary {
+      display: none;
+    }
+
+    .api-panel {
+      max-width: 720px;
+      margin-top: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .api-panel[open] {
+      flex-basis: min(720px, 100%);
+    }
+
+    .api-panel summary {
+      width: max-content;
+      height: 48px;
+      padding: 0 22px;
+      display: inline-flex;
+      justify-content: center;
+      gap: 0;
+      align-items: center;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: #fff;
+      cursor: pointer;
+      list-style: none;
+      transition: background 160ms ease, border-color 160ms ease;
+    }
+
+    .api-panel summary:hover {
+      background: #2b2b2b;
+      border-color: #2b2b2b;
+    }
+
+    .api-panel summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .api-panel-head strong {
+      font-family: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .api-panel summary .api-panel-head > span,
+    .api-toggle-text {
+      display: none;
+    }
+
+    .api-panel-body {
+      max-width: 720px;
+      margin-top: 16px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    @media (max-width: 720px) {
+      .hero h1 span {
+        display: block;
+        margin-left: 0;
+      }
+    }
+
+    /* === POLISHED WORKBENCH SYSTEM === */
+    :root {
+      --bg: #f4f1e9;
+      --paper: #fffdfa;
+      --ink: #101419;
+      --muted: #617070;
+      --line: #d8d2c4;
+      --soft: #ece7da;
+      --dark: #16201f;
+      --accent: #9b4a2f;
+      --accent-2: #236b5c;
+      --accent-soft: #efe0d7;
+      --shadow: 0 24px 70px rgba(37, 36, 29, 0.12);
+      --radius: 8px;
+      --content: min(1184px, calc(100vw - 64px));
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(155, 74, 47, 0.08), transparent 28%),
+        linear-gradient(315deg, rgba(35, 107, 92, 0.09), transparent 34%),
+        radial-gradient(circle at 12% 12%, rgba(255, 255, 255, 0.78), transparent 28%),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(16, 20, 25, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 20, 25, 0.035) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 74%);
+    }
+
+    .site-shell {
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      width: min(100%, var(--content));
+      height: 72px;
+      padding: 0 18px;
+      margin-top: 18px;
+      grid-template-columns: 1fr auto auto;
+      gap: 24px;
+      border: 1px solid rgba(216, 210, 196, 0.9);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 250, 0.86);
+      box-shadow: 0 12px 38px rgba(31, 30, 25, 0.08);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand-mark {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fffdfa;
+      font-weight: 700;
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.54);
+    }
+
+    .nav a,
+    .status {
+      white-space: nowrap;
+    }
+
+    .nav a {
+      padding: 8px 14px;
+      border-radius: 999px;
+      color: var(--muted);
+    }
+
+    .nav a:hover {
+      color: var(--ink);
+      background: var(--soft);
+    }
+
+    .status-dot {
+      background: var(--accent-2);
+      box-shadow: 0 0 0 5px rgba(35, 107, 92, 0.12);
+    }
+
+    .hero {
+      width: var(--content);
+      padding: 76px 0 38px;
+      grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.68fr);
+      gap: 56px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      margin-bottom: 18px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 253, 250, 0.72);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .hero h1 {
+      max-width: 720px;
+      font-family: "Noto Serif SC", "Songti SC", serif;
+      font-size: clamp(42px, 5.2vw, 76px);
+      line-height: 1.04;
+      font-weight: 700;
+      text-wrap: balance;
+    }
+
+    .hero h1 span {
+      display: block;
+      margin-left: 0;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .hero-copy {
+      max-width: 650px;
+      margin-top: 20px;
+      color: #405150;
+      font-size: 17px;
+      line-height: 1.85;
+    }
+
+    .hero-metrics {
+      margin: 26px 0 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      list-style: none;
+    }
+
+    .hero-metrics li {
+      min-height: 74px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 250, 0.72);
+    }
+
+    .hero-metrics b {
+      display: block;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .hero-metrics span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .hero-actions {
+      margin-top: 28px;
+    }
+
+    .button {
+      min-width: 116px;
+      height: 48px;
+      border-radius: var(--radius);
+      border-color: var(--ink);
+      background: var(--ink);
+      color: #fffdfa;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(16, 20, 25, 0.12);
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .button.secondary {
+      box-shadow: none;
+      background: rgba(255, 253, 250, 0.76);
+      border-color: var(--line);
+      color: var(--ink);
+    }
+
+    .button.secondary:hover {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #fffdfa;
+    }
+
+    .button:disabled {
+      cursor: wait;
+      opacity: 0.64;
+      transform: none;
+    }
+
+    .api-panel {
+      max-width: 760px;
+      margin-top: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .api-panel summary {
+      height: 48px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 250, 0.86);
+      color: var(--ink);
+      box-shadow: 0 10px 24px rgba(16, 20, 25, 0.07);
+    }
+
+    .api-panel summary:hover {
+      background: var(--paper);
+      border-color: var(--accent);
+    }
+
+    .api-panel-body {
+      width: min(720px, calc(100vw - 64px));
+      margin-top: 14px;
+      padding: 22px;
+      border-color: var(--line);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .specimen {
+      display: block;
+      min-height: 460px;
+      padding: 34px;
+      border-color: rgba(216, 210, 196, 0.92);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 253, 250, 0.92)),
+        var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .specimen-head {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .preview-stamp {
+      border-color: rgba(155, 74, 47, 0.48);
+      color: var(--accent);
+      transform: rotate(-9deg);
+    }
+
+    .section {
+      width: var(--content);
+      padding: 38px 0;
+      border-top-color: rgba(216, 210, 196, 0.86);
+      scroll-margin-top: 104px;
+    }
+
+    .section-header {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 30px;
+      margin-bottom: 24px;
+      align-items: end;
+    }
+
+    .section-title {
+      max-width: 820px;
+      font-size: clamp(28px, 3.4vw, 48px);
+      line-height: 1.14;
+      text-wrap: balance;
+    }
+
+    .section-kicker {
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .workflow-panel {
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 0.34fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .form-surface,
+    .side-brief,
+    .result-band {
+      border-color: rgba(216, 210, 196, 0.92);
+      border-radius: var(--radius);
+      box-shadow: 0 18px 48px rgba(31, 30, 25, 0.08);
+    }
+
+    .form-surface {
+      padding: 32px;
+      background: rgba(255, 253, 250, 0.95);
+    }
+
+    .form-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .form-heading h3 {
+      margin: 0;
+      font-family: "Noto Serif SC", "Songti SC", serif;
+      font-size: 28px;
+      line-height: 1.22;
+    }
+
+    .form-heading p {
+      max-width: 460px;
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .form-chip {
+      height: max-content;
+      padding: 8px 12px;
+      border: 1px solid rgba(35, 107, 92, 0.22);
+      border-radius: 999px;
+      background: rgba(35, 107, 92, 0.08);
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .field > span:first-child,
+    .field-label {
+      color: #364645;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      height: 54px;
+      border-color: var(--line);
+      background: #fffefa;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    select:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 4px rgba(35, 107, 92, 0.12);
+    }
+
+    .upload-zone,
+    .photo-tile {
+      position: relative;
+      overflow: hidden;
+      border-color: rgba(35, 107, 92, 0.38);
+      background:
+        linear-gradient(135deg, rgba(35, 107, 92, 0.07), transparent),
+        #fffefa;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .upload-zone::before,
+    .photo-tile::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border: 1px solid rgba(35, 107, 92, 0.12);
+      border-radius: calc(var(--radius) - 2px);
+      pointer-events: none;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over,
+    .photo-tile:hover,
+    .photo-tile.drag-over {
+      border-color: var(--accent-2);
+      background: rgba(35, 107, 92, 0.09);
+      box-shadow: inset 0 0 0 1px rgba(35, 107, 92, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .file-name:not(:empty),
+    .photo-tile span:not(:empty) {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .form-footer {
+      margin-top: 30px;
+      padding-top: 24px;
+    }
+
+    .form-note {
+      max-width: 620px;
+      color: #526260;
+    }
+
+    .run-status {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      min-height: 56px;
+      background: #f8f3e9;
+      border-color: rgba(155, 74, 47, 0.2);
+      color: #526260;
+    }
+
+    .run-status::before {
+      content: "";
+      flex: 0 0 auto;
+      width: 10px;
+      height: 10px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 5px rgba(155, 74, 47, 0.11);
+    }
+
+    .run-status.error {
+      border-color: rgba(155, 74, 47, 0.56);
+      background: #fbefe8;
+    }
+
+    .side-brief {
+      display: flex;
+      padding: 28px;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent),
+        var(--dark);
+    }
+
+    .side-brief h3 {
+      font-size: 28px;
+    }
+
+    .brief-list {
+      gap: 18px;
+      margin-top: 42px;
+    }
+
+    .brief-item span {
+      color: #c4cec9;
+    }
+
+    #documents {
+      display: block;
+    }
+
+    .project-grid {
+      overflow: hidden;
+      border-color: var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 250, 0.62);
+    }
+
+    .project-card {
+      min-height: 240px;
+      background: rgba(255, 253, 250, 0.5);
+    }
+
+    .project-card:hover {
+      background: var(--paper);
+    }
+
+    .project-card h3 {
+      margin-top: 38px;
+      font-size: 24px;
+    }
+
+    .result-band {
+      grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr);
+      gap: 34px;
+      padding: 34px;
+      background:
+        linear-gradient(135deg, rgba(35, 107, 92, 0.06), transparent 46%),
+        var(--paper);
+    }
+
+    .result-title {
+      font-size: clamp(30px, 3.2vw, 46px);
+    }
+
+    .download-strip {
+      overflow: hidden;
+      border-radius: var(--radius);
+      background: var(--line);
+    }
+
+    .download-row {
+      background: #fffefa;
+    }
+
+    .result-document {
+      max-height: 320px;
+      background: #fffefa;
+    }
+
+    .footer {
+      width: var(--content);
+      padding: 34px 0 42px;
+    }
+
+    @media (max-width: 1100px) {
+      :root {
+        --content: min(100vw - 40px, 920px);
+      }
+
+      .topbar {
+        grid-template-columns: 1fr auto;
+      }
+
+      .nav {
+        display: none;
+      }
+
+      .hero,
+      .workflow-panel,
+      .result-band {
+        grid-template-columns: 1fr;
+      }
+
+      .specimen {
+        min-height: 360px;
+      }
+
+      .section-header {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      :root {
+        --content: calc(100vw - 28px);
+      }
+
+      .topbar {
+        height: 56px;
+        margin-top: 0;
+        width: 100%;
+        border-width: 0 0 1px;
+        border-radius: 0;
+      }
+
+      .brand span:last-child,
+      .status {
+        display: none;
+      }
+
+      .brand .brand-mark {
+        display: grid;
+      }
+
+      .brand span:last-child {
+        display: inline;
+        font-size: 13px;
+      }
+
+      .hero {
+        padding: 48px 0 28px;
+      }
+
+      .hero h1 {
+        font-size: 42px;
+      }
+
+      .hero h1 span {
+        display: block;
+      }
+
+      .hero-metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-actions {
+        align-items: stretch;
+      }
+
+      .api-panel {
+        width: 100%;
+      }
+
+      .button,
+      .api-panel summary {
+        width: 100%;
+      }
+
+      .api-panel-body {
+        width: calc(100vw - 28px);
+      }
+
+      .specimen {
+        display: none;
+      }
+
+      .section {
+        padding: 28px 0;
+      }
+
+      .section-title {
+        font-size: 28px;
+      }
+
+      .form-surface,
+      .side-brief,
+      .result-band {
+        padding: 22px;
+      }
+
+      .form-heading,
+      .form-footer,
+      .footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .form-grid,
+      .api-fields,
+      .photo-row,
+      .project-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .side-brief {
+        display: none;
+      }
+
+      .download-row {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+    }
+
+    /* === MINIMAL TOOL LAYOUT === */
+    :root {
+      --bg: #f7f5ef;
+      --paper: #fffdfa;
+      --ink: #111111;
+      --muted: #5f6663;
+      --line: #ddd7ca;
+      --soft: #f0ece3;
+      --accent: #8f442e;
+      --accent-2: #226556;
+      --content: min(920px, calc(100vw - 48px));
+    }
+
+    body {
+      background: var(--bg);
+    }
+
+    body::before,
+    .nav,
+    .status,
+    .eyebrow,
+    .hero-metrics,
+    .specimen,
+    .section-header,
+    .side-brief,
+    #documents,
+    .form-chip,
+    .result-copy,
+    .result-band .section-kicker,
+    .footer span:last-child {
+      display: none;
+    }
+
+    .topbar {
+      position: static;
+      width: var(--content);
+      height: 60px;
+      margin: 18px auto 0;
+      padding: 0;
+      display: flex;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    .brand {
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--ink);
+      font-size: 13px;
+    }
+
+    .hero {
+      width: var(--content);
+      padding: 42px 0 22px;
+      display: block;
+    }
+
+    .hero h1 {
+      max-width: 640px;
+      font-family: "Noto Serif SC", "Songti SC", serif;
+      font-size: clamp(34px, 5vw, 56px);
+      line-height: 1.1;
+    }
+
+    .hero h1 span {
+      display: none;
+    }
+
+    .hero-copy {
+      max-width: 560px;
+      margin-top: 14px;
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    .hero-actions {
+      margin-top: 22px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .button,
+    .api-panel summary {
+      height: 44px;
+      min-width: 108px;
+      border-radius: 6px;
+      box-shadow: none;
+    }
+
+    .api-panel summary {
+      background: var(--paper);
+    }
+
+    .api-panel-body {
+      width: min(560px, calc(100vw - 48px));
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(20, 20, 20, 0.08);
+    }
+
+    .section {
+      width: var(--content);
+      padding: 20px 0;
+      border-top: 0;
+      scroll-margin-top: 24px;
+    }
+
+    .workflow-panel {
+      display: block;
+    }
+
+    .form-surface,
+    .result-band {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: none;
+    }
+
+    .form-heading {
+      margin-bottom: 20px;
+      padding-bottom: 18px;
+      display: block;
+    }
+
+    .form-heading h3 {
+      font-size: 24px;
+    }
+
+    .form-heading p {
+      max-width: 100%;
+      font-size: 13px;
+    }
+
+    .upload-zone {
+      min-height: 126px;
+      background: #fffefa;
+    }
+
+    .form-footer {
+      align-items: center;
+    }
+
+    .run-status {
+      display: block;
+      margin-top: 18px;
+      min-height: 48px;
+      background: #faf7f0;
+    }
+
+    .run-status::before {
+      display: none;
+    }
+
+    .progress-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .progress-head strong {
+      flex: 0 0 auto;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e8e1d3;
+    }
+
+    .progress-bar {
+      display: block;
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent-2);
+      transition: width 300ms ease, background 180ms ease;
+    }
+
+    .run-status.active .progress-bar {
+      background:
+        linear-gradient(90deg, var(--accent-2), #2f7d6c),
+        var(--accent-2);
+    }
+
+    .run-status.complete .progress-bar {
+      background: var(--accent-2);
+    }
+
+    .run-status.error .progress-bar {
+      background: var(--accent);
+    }
+
+    .result-band {
+      margin-top: 12px;
+      display: block;
+    }
+
+    .result-title {
+      margin-bottom: 18px;
+      font-size: 28px;
+    }
+
+    .download-row {
+      min-height: 64px;
+    }
+
+    .result-document {
+      max-height: 260px;
+    }
+
+    .footer {
+      width: var(--content);
+      padding: 24px 0 32px;
+    }
+
+    @media (max-width: 720px) {
+      :root {
+        --content: calc(100vw - 28px);
+      }
+
+      .topbar {
+        width: var(--content);
+        height: 54px;
+        margin-top: 6px;
+        border-width: 0 0 1px;
+      }
+
+      .brand span:last-child {
+        display: inline;
+      }
+
+      .hero {
+        padding: 30px 0 16px;
+      }
+
+      .hero h1 {
+        font-size: 34px;
+      }
+
+      .hero-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .api-panel,
+      .button,
+      .api-panel summary {
+        width: 100%;
+      }
+
+      .form-surface,
+      .result-band {
+        padding: 18px;
+      }
+
+      .form-footer {
+        align-items: stretch;
+      }
+    }
+
+    /* === PREMIUM DOCUMENT CONSOLE === */
+    :root {
+      --bg: #f3efe5;
+      --paper: #fffdf8;
+      --ink: #111816;
+      --muted: #61706a;
+      --line: #d8cebd;
+      --soft: #eee7d9;
+      --accent: #8e3f2d;
+      --accent-2: #1f6659;
+      --gold: #b58a54;
+      --content: min(980px, calc(100vw - 56px));
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.82), transparent 28%),
+        linear-gradient(145deg, rgba(31, 102, 89, 0.08), transparent 38%),
+        linear-gradient(315deg, rgba(142, 63, 45, 0.07), transparent 36%),
+        var(--bg);
+    }
+
+    .topbar {
+      height: 64px;
+      margin-top: 20px;
+      padding: 0 4px;
+      align-items: center;
+      border-bottom-color: rgba(216, 206, 189, 0.88);
+    }
+
+    .brand {
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(145deg, var(--ink), #24312d);
+      box-shadow: 0 10px 26px rgba(17, 24, 22, 0.14);
+    }
+
+    .hero {
+      padding: 48px 0 24px;
+    }
+
+    .hero h1 {
+      font-size: clamp(40px, 5.6vw, 64px);
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      color: #495953;
+      font-size: 16px;
+    }
+
+    .hero-actions {
+      margin-top: 24px;
+    }
+
+    .button,
+    .api-panel summary {
+      height: 46px;
+      border-radius: 8px;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    .button {
+      border-color: var(--ink);
+      background: linear-gradient(145deg, var(--ink), #263530);
+      box-shadow: 0 14px 28px rgba(17, 24, 22, 0.18);
+    }
+
+    .button:hover {
+      background: linear-gradient(145deg, var(--accent-2), #174d43);
+      border-color: var(--accent-2);
+    }
+
+    .api-panel summary {
+      border-color: rgba(216, 206, 189, 0.95);
+      background: rgba(255, 253, 248, 0.86);
+    }
+
+    .section {
+      padding: 18px 0;
+    }
+
+    .form-surface,
+    .result-band {
+      position: relative;
+      overflow: visible;
+      padding: 28px;
+      border-color: rgba(216, 206, 189, 0.96);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.8), transparent 44%),
+        var(--paper);
+      box-shadow: 0 28px 72px rgba(38, 34, 25, 0.12);
+    }
+
+    .form-surface::before,
+    .result-band::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 28px;
+      left: 28px;
+      height: 3px;
+      border-radius: 0 0 999px 999px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      opacity: 0.68;
+    }
+
+    .form-heading {
+      border-bottom-color: rgba(216, 206, 189, 0.86);
+    }
+
+    .form-heading h3,
+    .result-title {
+      color: var(--ink);
+      font-family: "Noto Serif SC", "Songti SC", serif;
+      font-weight: 700;
+    }
+
+    .form-heading p,
+    .form-note,
+    .progress-head {
+      color: var(--muted);
+    }
+
+    .upload-zone,
+    .photo-tile {
+      border-style: solid;
+      border-color: rgba(31, 102, 89, 0.28);
+      background:
+        linear-gradient(135deg, rgba(31, 102, 89, 0.05), transparent),
+        #fffefa;
+    }
+
+    .native-select {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .select-shell {
+      position: relative;
+      z-index: 3;
+    }
+
+    .select-button {
+      width: 100%;
+      height: 56px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid rgba(31, 102, 89, 0.28);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 253, 248, 0.96)),
+        var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 15px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    .select-button::after {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-right: 2px solid var(--ink);
+      border-bottom: 2px solid var(--ink);
+      transform: translateY(-2px) rotate(45deg);
+      transition: transform 160ms ease;
+    }
+
+    .select-shell.open .select-button,
+    .select-button:focus-visible {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 4px rgba(31, 102, 89, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      outline: none;
+    }
+
+    .select-shell.open .select-button::after {
+      transform: translateY(2px) rotate(225deg);
+    }
+
+    .select-menu {
+      position: absolute;
+      z-index: 30;
+      top: calc(100% + 8px);
+      right: 0;
+      left: 0;
+      padding: 6px;
+      display: none;
+      border: 1px solid rgba(216, 206, 189, 0.96);
+      border-radius: 10px;
+      background: rgba(255, 253, 248, 0.98);
+      box-shadow: 0 24px 58px rgba(30, 27, 20, 0.16);
+      backdrop-filter: blur(18px);
+    }
+
+    .select-shell.open .select-menu {
+      display: grid;
+      gap: 2px;
+    }
+
+    .select-option {
+      min-height: 44px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: left;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .select-option:hover,
+    .select-option[aria-selected="true"] {
+      background: rgba(31, 102, 89, 0.1);
+      color: #123d35;
+    }
+
+    .select-option[aria-selected="true"] {
+      font-weight: 700;
+    }
+
+    .run-status {
+      border-color: rgba(216, 206, 189, 0.88);
+      background: #fbf6ec;
+    }
+
+    .progress-track {
+      background: #e5dac8;
+    }
+
+    .progress-bar {
+      background: linear-gradient(90deg, var(--accent-2), #347c6f);
+    }
+
+    @media (max-width: 720px) {
+      :root {
+        --content: calc(100vw - 30px);
+      }
+
+      .topbar {
+        height: 56px;
+      }
+
+      .hero {
+        padding-top: 32px;
+      }
+
+      .form-surface,
+      .result-band {
+        padding: 20px;
+      }
+
+      .select-menu {
+        max-height: 260px;
+        overflow: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar">
+      <a class="brand" href="#">
+        <span class="brand-mark">文</span>
+        <span>文书生成</span>
+      </a>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#api-settings">API</a>
+        <a href="#workflow">生成</a>
+        <a href="#documents">文书</a>
+        <a href="#export">导出</a>
+      </nav>
+      <div class="status">
+        <span class="status-dot"></span>
+        <span>Dify 工作流</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">DIFY WORKFLOW</p>
+          <h1 id="hero-title">警务文书生成</h1>
+          <p class="hero-copy">上传笔录 Word，选择文书类型，生成可下载文件。</p>
+          <ul class="hero-metrics" aria-label="流程摘要">
+            <li><b>3 步</b><span>上传材料 / 选择类型 / 生成导出</span></li>
+            <li><b>6 类</b><span>覆盖处罚、检查、辨认、入所等文书</span></li>
+            <li><b>本地保存</b><span>API 配置只保存在当前浏览器</span></li>
+          </ul>
+          <div class="hero-actions">
+            <a class="button" href="#workflow">开始生成</a>
+            <details class="api-panel" id="api-settings">
+              <summary>
+                <span class="api-panel-head">
+                  <strong>Dify 接入设置</strong>
+                  <span>只保存在当前浏览器</span>
+                </span>
+                <span class="api-toggle-text">
+                  <span class="api-open-label">展开</span>
+                  <span class="api-close-label">收起</span>
+                </span>
+              </summary>
+              <div class="api-panel-body">
+                <div class="api-fields">
+                  <label class="field">
+                    <span>Dify API 地址</span>
+                    <input id="difyBaseUrl" type="text" value="http://localhost/v1" autocomplete="off">
+                  </label>
+                  <label class="field">
+                    <span>Dify API Key</span>
+                    <input id="difyApiKey" type="password" placeholder="app-..." autocomplete="off">
+                  </label>
+                </div>
+                <p class="api-note">API Key 在 Dify 应用右上角「访问 API / API Access」里创建，通常以 app- 开头。</p>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <figure class="specimen" aria-label="文书预览">
+          <div class="specimen-head">
+            <span>STANDARD WORD OUTPUT</span>
+            <span>DOCX / ZIP</span>
+          </div>
+          <div class="document-preview">
+            <h2 class="doc-title">行政处罚决定书</h2>
+            <div class="preview-row"><span>当事人</span><i class="line"></i></div>
+            <div class="preview-row"><span>案由</span><i class="line short"></i></div>
+            <div class="preview-row"><span>事实</span><i class="line"></i></div>
+            <div class="preview-body">
+              <i class="line"></i>
+              <i class="line"></i>
+              <i class="line"></i>
+              <i class="line"></i>
+              <i class="line"></i>
+            </div>
+            <div class="preview-stamp">TEMPLATE</div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="section" id="workflow">
+        <div class="section-header">
+          <p class="section-kicker">01 / WORKFLOW ENTRY</p>
+          <h2 class="section-title">把材料上传、文书选择和标准版式导出收进一个清晰流程。</h2>
+        </div>
+
+        <div class="workflow-panel">
+          <form class="form-surface" id="workflowForm">
+            <div class="form-heading">
+              <div>
+                <h3>生成任务</h3>
+                <p>上传材料后选择文书类型，点击生成即可。</p>
+              </div>
+              <span class="form-chip">Dify blocking mode</span>
+            </div>
+            <div class="form-grid">
+              <label class="field full">
+                <span>上传笔录 Word</span>
+                <span class="upload-zone">
+                  <input id="transcriptFile" type="file" accept=".doc,.docx">
+                  <strong>选择或拖入 Word 文档</strong>
+                  <span>支持 doc / docx 笔录材料</span>
+                  <span class="file-name" id="transcriptFileName"></span>
+                </span>
+              </label>
+
+              <label class="field">
+                <span>生成文书</span>
+                <select id="documentType">
+                  <option>行政处罚决定书</option>
+                  <option>检查笔录</option>
+                  <option>辨认笔录</option>
+                  <option>入所材料</option>
+                  <option>入所表</option>
+                  <option>前科证明</option>
+                </select>
+              </label>
+
+              <label class="field" id="photoModeField">
+                <span>身体检查照片</span>
+                <select id="photoMode">
+                  <option>不上传检查照片</option>
+                  <option>上传两张检查照片</option>
+                </select>
+              </label>
+
+              <div class="field full" id="photoField" hidden>
+                <span>身体检查照片</span>
+                <div class="photo-row">
+                  <label class="photo-tile">
+                    <input id="checkPhoto1" type="file" accept="image/*">
+                    <span id="checkPhoto1Name">正面照片</span>
+                  </label>
+                  <label class="photo-tile">
+                    <input id="checkPhoto2" type="file" accept="image/*">
+                    <span id="checkPhoto2Name">侧面照片</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-footer">
+              <p class="form-note">检查笔录可按需上传照片；入所材料可能返回 Word 或 Zip。</p>
+              <button class="button" id="generateButton" type="submit">生成 Word</button>
+            </div>
+            <div class="run-status" id="runStatus" role="status" aria-live="polite">
+              <div class="progress-head">
+                <span id="progressText">等待上传材料。</span>
+                <strong id="progressPercent">0%</strong>
+              </div>
+              <div class="progress-track" aria-hidden="true">
+                <span class="progress-bar" id="progressBar"></span>
+              </div>
+            </div>
+          </form>
+
+          <aside class="side-brief">
+            <h3>每一步只暴露必要操作，减少误填和返工。</h3>
+            <div class="brief-list">
+              <div class="brief-item">
+                <b>材料读取</b>
+                <span>从笔录提取姓名、时间、事实、案由和关键字段。</span>
+              </div>
+              <div class="brief-item">
+                <b>事实压缩</b>
+                <span>保留清楚事实，同时写明涉嫌罪名或违法行为。</span>
+              </div>
+              <div class="brief-item">
+                <b>标准导出</b>
+                <span>按模板输出 Word，下载入口保持明确可点击。</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="documents">
+        <div class="section-header">
+          <p class="section-kicker">02 / DOCUMENT SUITE</p>
+          <h2 class="section-title">常用文书类型保持可见，生成前就能确认覆盖范围。</h2>
+        </div>
+
+        <div class="project-grid">
+          <article class="project-card">
+            <div class="project-meta"><span>DOC 01</span><span>Penalty</span></div>
+            <div>
+              <h3>行政处罚决定书</h3>
+              <p>提炼事实，写明涉嫌罪名或违法行为，保持决定书正式语气。</p>
+            </div>
+          </article>
+
+          <article class="project-card">
+            <div class="project-meta"><span>DOC 02</span><span>Inspection</span></div>
+            <div>
+              <h3>身体检查笔录</h3>
+              <p>正文与照片分离，照片页按标准模板独立排版。</p>
+            </div>
+          </article>
+
+          <article class="project-card">
+            <div class="project-meta"><span>DOC 03</span><span>Identify</span></div>
+            <div>
+              <h3>辨认笔录</h3>
+              <p>保持原模板结构，替换笔录中的对应字段。</p>
+            </div>
+          </article>
+
+          <article class="project-card">
+            <div class="project-meta"><span>DOC 04</span><span>Entry</span></div>
+            <div>
+              <h3>入所材料</h3>
+              <p>生成六份 Word；固定告知书和知识材料可直接输出。</p>
+            </div>
+          </article>
+
+          <article class="project-card">
+            <div class="project-meta"><span>DOC 05</span><span>Record</span></div>
+            <div>
+              <h3>前科证明</h3>
+              <p>按标准证明模板保留格式，替换姓名、身份和证明内容。</p>
+            </div>
+          </article>
+
+          <article class="project-card">
+            <div class="project-meta"><span>DOC 06</span><span>Archive</span></div>
+            <div>
+              <h3>模板档案</h3>
+              <p>模板集中管理，输出结果保持可复查、可归档。</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="export">
+        <div class="result-band">
+          <div>
+            <p class="section-kicker">03 / WORD EXPORT</p>
+            <h2 class="result-title">生成结果</h2>
+            <p class="result-copy">下载入口和正文会显示在这里。</p>
+          </div>
+
+          <div>
+            <div class="download-strip" id="downloadList" aria-label="导出列表">
+              <div class="download-row">
+                <div>
+                  <strong>等待生成</strong><br>
+                  <span>上传笔录后会在这里显示 Word 下载入口</span>
+                </div>
+                <a class="button secondary" href="#workflow">生成</a>
+              </div>
+            </div>
+            <div class="result-document empty-result" id="resultDocument">生成完成后，只显示文书正文和可下载文件，不展示中间推理或执行过程。</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Dify 文书工作流</span>
+      <span>Monochrome Interface System</span>
+    </footer>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "police-document-workflow:dify-settings";
+
+    const elements = {
+      form: document.getElementById("workflowForm"),
+      transcriptFile: document.getElementById("transcriptFile"),
+      transcriptFileName: document.getElementById("transcriptFileName"),
+      documentType: document.getElementById("documentType"),
+      photoModeField: document.getElementById("photoModeField"),
+      photoMode: document.getElementById("photoMode"),
+      photoField: document.getElementById("photoField"),
+      checkPhoto1: document.getElementById("checkPhoto1"),
+      checkPhoto1Name: document.getElementById("checkPhoto1Name"),
+      checkPhoto2: document.getElementById("checkPhoto2"),
+      checkPhoto2Name: document.getElementById("checkPhoto2Name"),
+      difyBaseUrl: document.getElementById("difyBaseUrl"),
+      difyApiKey: document.getElementById("difyApiKey"),
+      generateButton: document.getElementById("generateButton"),
+      runStatus: document.getElementById("runStatus"),
+      progressText: document.getElementById("progressText"),
+      progressPercent: document.getElementById("progressPercent"),
+      progressBar: document.getElementById("progressBar"),
+      downloadList: document.getElementById("downloadList"),
+      resultDocument: document.getElementById("resultDocument")
+    };
+
+    let progressTimer = null;
+
+    function loadSettings() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        if (saved.baseUrl) elements.difyBaseUrl.value = saved.baseUrl;
+        if (saved.apiKey) elements.difyApiKey.value = saved.apiKey;
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function saveSettings(baseUrl, apiKey) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ baseUrl, apiKey }));
+    }
+
+    function normalizeBaseUrl(value) {
+      let baseUrl = String(value || "").trim().replace(/\/+$/, "");
+      if (!baseUrl) return "";
+      if (!/\/v1$/i.test(baseUrl)) baseUrl += "/v1";
+      return baseUrl;
+    }
+
+    function makeUserId() {
+      const key = "police-document-workflow:user";
+      let userId = localStorage.getItem(key);
+      if (!userId) {
+        userId = "web-" + Math.random().toString(16).slice(2) + Date.now().toString(16);
+        localStorage.setItem(key, userId);
+      }
+      return userId;
+    }
+
+    function setStatus(message, isError = false, progress = 0) {
+      const progressValue = Math.max(0, Math.min(100, Number(progress) || 0));
+      elements.progressText.innerHTML = message;
+      elements.progressPercent.textContent = progressValue + "%";
+      elements.progressBar.style.width = progressValue + "%";
+      elements.runStatus.classList.toggle("error", isError);
+      elements.runStatus.classList.toggle("active", !isError && progressValue > 0 && progressValue < 100);
+      elements.runStatus.classList.toggle("complete", !isError && progressValue >= 100);
+    }
+
+    function stopProgressTimer() {
+      if (!progressTimer) return;
+      clearInterval(progressTimer);
+      progressTimer = null;
+    }
+
+    function startWorkflowProgress(message, durationMs = 30000) {
+      stopProgressTimer();
+      const startProgress = 50;
+      const endProgress = 98;
+      const startedAt = Date.now();
+      setStatus(message, false, startProgress);
+
+      progressTimer = setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        const ratio = Math.min(elapsed / durationMs, 1);
+        const progress = Math.round(startProgress + (endProgress - startProgress) * ratio);
+        setStatus(message, false, progress);
+        if (ratio >= 1) stopProgressTimer();
+      }, 500);
+    }
+
+    function setBusy(isBusy) {
+      elements.generateButton.disabled = isBusy;
+      elements.generateButton.textContent = isBusy ? "生成中..." : "生成 Word";
+    }
+
+    function selectedFile(input) {
+      return input.files && input.files[0] ? input.files[0] : null;
+    }
+
+    function updateFileLabels() {
+      const transcript = selectedFile(elements.transcriptFile);
+      const photo1 = selectedFile(elements.checkPhoto1);
+      const photo2 = selectedFile(elements.checkPhoto2);
+      elements.transcriptFileName.textContent = transcript ? transcript.name : "";
+      elements.checkPhoto1Name.textContent = photo1 ? photo1.name : "正面照片";
+      elements.checkPhoto2Name.textContent = photo2 ? photo2.name : "侧面照片";
+    }
+
+    function bindDropTarget(zone, input) {
+      ["dragenter", "dragover"].forEach((eventName) => {
+        zone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          zone.classList.add("drag-over");
+        });
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        zone.addEventListener(eventName, () => {
+          zone.classList.remove("drag-over");
+        });
+      });
+
+      zone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+        if (!file) return;
+
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        updateFileLabels();
+        updatePhotoVisibility();
+      });
+    }
+
+    function bindDropTargets() {
+      document.querySelectorAll(".upload-zone, .photo-tile").forEach((zone) => {
+        const input = zone.querySelector('input[type="file"]');
+        if (input) bindDropTarget(zone, input);
+      });
+    }
+
+    function updatePhotoVisibility() {
+      const isCheckRecord = elements.documentType.value === "检查笔录";
+      const needsPhotos = isCheckRecord && elements.photoMode.value === "上传两张检查照片";
+      elements.photoModeField.hidden = !isCheckRecord;
+      elements.photoField.hidden = !needsPhotos;
+    }
+
+    function closeSelectShells(exceptShell) {
+      document.querySelectorAll(".select-shell.open").forEach((shell) => {
+        if (shell !== exceptShell) {
+          shell.classList.remove("open");
+          shell.querySelector(".select-button").setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
+    function syncSelectShell(select, shell) {
+      const buttonText = shell.querySelector(".select-button-text");
+      const options = shell.querySelectorAll(".select-option");
+      buttonText.textContent = select.value;
+      options.forEach((option) => {
+        option.setAttribute("aria-selected", option.dataset.value === select.value ? "true" : "false");
+      });
+    }
+
+    function enhanceSelect(select) {
+      select.classList.add("native-select");
+      select.setAttribute("data-enhanced", "true");
+
+      const shell = document.createElement("div");
+      shell.className = "select-shell";
+      shell.innerHTML = `
+        <button class="select-button" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="select-button-text"></span>
+        </button>
+        <div class="select-menu" role="listbox"></div>
+      `;
+
+      const button = shell.querySelector(".select-button");
+      const menu = shell.querySelector(".select-menu");
+
+      Array.from(select.options).forEach((option) => {
+        const item = document.createElement("button");
+        item.className = "select-option";
+        item.type = "button";
+        item.setAttribute("role", "option");
+        item.dataset.value = option.value;
+        item.textContent = option.textContent;
+        item.addEventListener("click", () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+          syncSelectShell(select, shell);
+          shell.classList.remove("open");
+          button.setAttribute("aria-expanded", "false");
+          button.focus();
+        });
+        menu.appendChild(item);
+      });
+
+      button.addEventListener("click", () => {
+        const shouldOpen = !shell.classList.contains("open");
+        closeSelectShells(shell);
+        shell.classList.toggle("open", shouldOpen);
+        button.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      });
+
+      button.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          shell.classList.remove("open");
+          button.setAttribute("aria-expanded", "false");
+        }
+      });
+
+      select.addEventListener("change", () => syncSelectShell(select, shell));
+      select.insertAdjacentElement("afterend", shell);
+      syncSelectShell(select, shell);
+    }
+
+    function bindCustomSelects() {
+      [elements.documentType, elements.photoMode].forEach(enhanceSelect);
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest(".select-shell")) closeSelectShells();
+      });
+    }
+
+    async function readJsonResponse(response) {
+      const text = await response.text();
+      let payload = null;
+      try {
+        payload = text ? JSON.parse(text) : null;
+      } catch {
+        payload = text;
+      }
+      if (!response.ok) {
+        const message = payload && typeof payload === "object"
+          ? payload.message || payload.error || JSON.stringify(payload)
+          : payload || response.statusText;
+        throw new Error(message);
+      }
+      return payload;
+    }
+
+    async function uploadFile(baseUrl, apiKey, userId, file, type) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("user", userId);
+
+      const response = await fetch(baseUrl + "/files/upload", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + apiKey },
+        body: formData
+      });
+      const uploaded = await readJsonResponse(response);
+      if (!uploaded || !uploaded.id) {
+        throw new Error("文件上传成功但没有返回 upload_file_id。");
+      }
+      return {
+        type,
+        transfer_method: "local_file",
+        upload_file_id: uploaded.id
+      };
+    }
+
+    async function runWorkflow(baseUrl, apiKey, userId, inputs) {
+      const response = await fetch(baseUrl + "/workflows/run", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          inputs,
+          response_mode: "blocking",
+          user: userId
+        })
+      });
+      return readJsonResponse(response);
+    }
+
+    function parseMarkdownLink(value) {
+      const text = String(value || "").trim();
+      const match = text.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (!match) return null;
+      return { label: match[1], url: match[2] };
+    }
+
+    function normalizeDownloadUrl(url, baseUrl) {
+      if (!url) return "";
+      const cleanUrl = String(url).trim();
+      if (/^https?:\/\//i.test(cleanUrl)) return cleanUrl;
+      try {
+        const apiUrl = new URL(baseUrl);
+        return new URL(cleanUrl, apiUrl.origin).href;
+      } catch {
+        return cleanUrl;
+      }
+    }
+
+    function fileNameFromUrl(url, fallback) {
+      try {
+        const path = new URL(url).pathname;
+        const name = decodeURIComponent(path.split("/").filter(Boolean).pop() || "");
+        return name || fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function collectDownloadItems(outputs, baseUrl) {
+      const items = [];
+      const markdownLink = parseMarkdownLink(outputs.word_download_link);
+      if (markdownLink) {
+        const url = normalizeDownloadUrl(markdownLink.url, baseUrl);
+        items.push({
+          name: fileNameFromUrl(url, markdownLink.label || "Word 文档"),
+          meta: "Word export service",
+          url
+        });
+      }
+
+      const files = Array.isArray(outputs.files) ? outputs.files : [];
+      files.forEach((file, index) => {
+        const rawUrl = file.url || file.download_url || file.remote_url || file.source_url || file.original_url || file.preview_url || file.signed_url || "";
+        const url = normalizeDownloadUrl(rawUrl, baseUrl);
+        if (!url) return;
+        const name = file.filename || file.name || fileNameFromUrl(url, "生成文件 " + (index + 1));
+        items.push({
+          name,
+          meta: file.mime_type || file.extension || "Dify file",
+          url
+        });
+      });
+
+      return items;
+    }
+
+    function renderDownloads(items) {
+      if (!items.length) {
+        elements.downloadList.innerHTML = `
+          <div class="download-row">
+            <div>
+              <strong>没有检测到下载文件</strong><br>
+              <span>请检查工作流结束节点是否输出 word_download_link 或 files</span>
+            </div>
+            <a class="button secondary" href="#workflow">返回</a>
+          </div>
+        `;
+        return;
+      }
+
+      elements.downloadList.innerHTML = items.map((item) => `
+        <div class="download-row">
+          <div>
+            <strong>${escapeHtml(item.name)}</strong><br>
+            <span>${escapeHtml(item.meta || "Word document")}</span>
+          </div>
+          <a class="button secondary" href="${escapeAttribute(item.url)}" target="_blank" rel="noopener">下载</a>
+        </div>
+      `).join("");
+    }
+
+    function renderDocument(text) {
+      const content = String(text || "").trim();
+      if (!content) {
+        elements.resultDocument.textContent = "工作流已返回，但没有正文输出。";
+        elements.resultDocument.classList.add("empty-result");
+        return;
+      }
+      elements.resultDocument.textContent = content;
+      elements.resultDocument.classList.remove("empty-result");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replaceAll("`", "&#096;");
+    }
+
+    async function handleSubmit(event) {
+      event.preventDefault();
+      const baseUrl = normalizeBaseUrl(elements.difyBaseUrl.value);
+      const apiKey = elements.difyApiKey.value.trim();
+      const transcript = selectedFile(elements.transcriptFile);
+      const documentType = elements.documentType.value;
+      const photoMode = elements.photoMode.value;
+      const photo1 = selectedFile(elements.checkPhoto1);
+      const photo2 = selectedFile(elements.checkPhoto2);
+
+      if (!baseUrl) {
+        setStatus("<strong>请填写 Dify API 地址。</strong>", true, 0);
+        return;
+      }
+      if (!apiKey) {
+        setStatus("<strong>请填写 Dify API Key。</strong> 在 Dify 应用的 API 访问页面创建，格式通常以 app- 开头。", true, 0);
+        return;
+      }
+      if (!transcript) {
+        setStatus("<strong>请先上传笔录 Word。</strong>", true, 0);
+        return;
+      }
+      if (documentType === "检查笔录" && photoMode === "上传两张检查照片" && (!photo1 || !photo2)) {
+        setStatus("<strong>已选择上传检查照片。</strong> 请同时选择两张照片。", true, 0);
+        return;
+      }
+
+      saveSettings(baseUrl, apiKey);
+      setBusy(true);
+      stopProgressTimer();
+      setStatus("正在上传笔录文件...", false, 20);
+
+      try {
+        const userId = makeUserId();
+        const transcriptPayload = await uploadFile(baseUrl, apiKey, userId, transcript, "document");
+        setStatus("笔录已上传，正在整理输入参数...", false, 40);
+        const inputs = {
+          document_type: documentType,
+          photo_upload_choice: photoMode,
+          transcript: transcriptPayload
+        };
+
+        if (documentType === "检查笔录" && photoMode === "上传两张检查照片") {
+          setStatus("正在上传第一张检查照片...", false, 42);
+          inputs.check_photo_1 = await uploadFile(baseUrl, apiKey, userId, photo1, "image");
+          setStatus("正在上传第二张检查照片...", false, 45);
+          inputs.check_photo_2 = await uploadFile(baseUrl, apiKey, userId, photo2, "image");
+          setStatus("检查照片已上传，准备运行工作流...", false, 48);
+        }
+
+        startWorkflowProgress("文件已上传，正在运行 Dify 工作流...");
+        const result = await runWorkflow(baseUrl, apiKey, userId, inputs);
+        stopProgressTimer();
+        const data = result.data || result;
+        const outputs = data.outputs || {};
+
+        if (data.status && data.status !== "succeeded") {
+          throw new Error(data.error || "工作流状态：" + data.status);
+        }
+
+        renderDocument(outputs.document || outputs.text || outputs.answer || "");
+        renderDownloads(collectDownloadItems(outputs, baseUrl));
+        setStatus("<strong>生成完成。</strong> 已在结果区显示正文和下载入口。", false, 100);
+        location.hash = "export";
+      } catch (error) {
+        stopProgressTimer();
+        const message = error && error.message ? error.message : String(error);
+        setStatus("<strong>生成失败。</strong> " + escapeHtml(message), true, 100);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    elements.transcriptFile.addEventListener("change", updateFileLabels);
+    elements.checkPhoto1.addEventListener("change", updateFileLabels);
+    elements.checkPhoto2.addEventListener("change", updateFileLabels);
+    elements.documentType.addEventListener("change", updatePhotoVisibility);
+    elements.photoMode.addEventListener("change", updatePhotoVisibility);
+    elements.form.addEventListener("submit", handleSubmit);
+    bindCustomSelects();
+    bindDropTargets();
+    loadSettings();
+    updatePhotoVisibility();
+  </script>
+</body>
+</html>

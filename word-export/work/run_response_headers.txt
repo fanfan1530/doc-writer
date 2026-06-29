@@ -1,0 +1,13 @@
+﻿HTTP/1.1 400 BAD REQUEST
+Server: nginx/1.29.8
+Date: Wed, 10 Jun 2026 16:58:16 GMT
+Content-Type: application/json
+Content-Length: 646
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+Access-Control-Expose-Headers: X-Env, X-Trace-Id, X-Version
+X-Version: 1.14.0
+X-Env: PRODUCTION
+Vary: Cookie
+
+{"code":"invalid_param","message":"1 validation error for CodeNodeData\noutputs.output_file.type\n  Value error, invalid type for code output, expected frozenset({<SegmentType.STRING: 'string'>, <SegmentType.ARRAY_BOOLEAN: 'array[boolean]'>, <SegmentType.NUMBER: 'number'>, <SegmentType.ARRAY_STRING: 'array[string]'>, <SegmentType.OBJECT: 'object'>, <SegmentType.BOOLEAN: 'boolean'>, <SegmentType.ARRAY_NUMBER: 'array[number]'>, <SegmentType.ARRAY_OBJECT: 'array[object]'>}), actual file [type=value_error, input_value='file', input_type=str]\n    For further information visit https:\/\/errors.pydantic.dev\/2.12\/v\/value_error","status":400}

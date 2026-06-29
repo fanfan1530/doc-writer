@@ -1,0 +1,635 @@
+{
+  "nodes": [
+    {
+      "id": "start-node",
+      "data": {
+        "desc": "上传笔录Word文档，AI自动解析、识别文书类型、抽取要素、润色事实、填充模板，生成规范公安法律文书",
+        "type": "start",
+        "title": "上传笔录文档",
+        "selected": false,
+        "variables": [
+          {
+            "type": "file",
+            "label": "笔录文件",
+            "required": true,
+            "variable": "transcript",
+            "allowed_file_types": [
+              "document"
+            ],
+            "allowed_file_extensions": [
+              ".docx",
+              ".doc"
+            ],
+            "allowed_file_upload_methods": [
+              "local_file"
+            ]
+          }
+        ]
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 168,
+      "position": {
+        "x": 80,
+        "y": 282
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 80,
+        "y": 282
+      }
+    },
+    {
+      "id": "doc-extractor",
+      "data": {
+        "type": "document-extractor",
+        "title": "文档解析",
+        "selected": false,
+        "variable_selector": [
+          "start-node",
+          "transcript"
+        ]
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 104,
+      "position": {
+        "x": 394,
+        "y": 392
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 394,
+        "y": 392
+      }
+    },
+    {
+      "id": "flatten-text",
+      "data": {
+        "code": "def main(text):\n    if isinstance(text, list):\n        return {'flat_text': chr(10).join(str(t) for t in text)}\n    return {'flat_text': str(text) if text else ''}\n",
+        "type": "code",
+        "title": "文本合并",
+        "outputs": {
+          "flat_text": {
+            "type": "string"
+          }
+        },
+        "selected": false,
+        "variables": [
+          {
+            "variable": "text",
+            "value_selector": [
+              "doc-extractor",
+              "text"
+            ]
+          }
+        ],
+        "code_language": "python3"
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 51,
+      "position": {
+        "x": 684,
+        "y": 282
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 684,
+        "y": 282
+      }
+    },
+    {
+      "id": "llm-classify",
+      "data": {
+        "type": "llm",
+        "model": {
+          "mode": "chat",
+          "name": "deepseek-v4-flash",
+          "provider": "langgenius/deepseek/deepseek",
+          "completion_params": {
+            "temperature": 0.1
+          }
+        },
+        "title": "识别文书类型",
+        "memory": {
+          "window": {
+            "enabled": false
+          },
+          "role_prefix": null
+        },
+        "vision": {
+          "enabled": false
+        },
+        "context": {
+          "enabled": true,
+          "variable_selector": [
+            "flatten-text",
+            "flat_text"
+          ]
+        },
+        "selected": false,
+        "prompt_template": [
+          {
+            "id": "s1",
+            "role": "system",
+            "text": "你是一名公安法制民警。根据以下讯问/询问笔录内容，判断应该生成哪种法律文书。\n\n判断规则：\n1. 如果是讯问犯罪嫌疑人笔录 → 行政处罚决定书\n2. 如果是现场勘验检查记录 → 现场勘查笔录\n3. 如果是组织辨认过程记录 → 辨认笔录\n4. 如果是搜查过程记录 → 搜查笔录\n5. 如果是对人/场所/物品的检查记录 → 检查笔录\n6. 如果是处罚前告知过程记录 → 行政处罚告知笔录\n7. 如果是调解纠纷记录 → 调解协议书\n8. 如果是扣押物品记录 → 扣押决定书\n9. 如果是犯罪现场指认记录 → 指认笔录\n10. 如果是案件侦办总结 → 结案报告\n\n案件性质：盗窃/殴打他人/诈骗/赌博/吸毒/寻衅滋事等，根据笔录内容判断。\n\n直接输出JSON，不要任何思考过程：\n{\"doc_type\": \"文书名称\", \"case_nature\": \"案件性质\"}"
+          },
+          {
+            "id": "u1",
+            "role": "user",
+            "text": "笔录内容：\n{{#context#}}"
+          }
+        ]
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 87,
+      "position": {
+        "x": 382,
+        "y": 100
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 382,
+        "y": 100
+      }
+    },
+    {
+      "id": "llm-extract",
+      "data": {
+        "type": "llm",
+        "model": {
+          "mode": "chat",
+          "name": "deepseek-v4-flash",
+          "provider": "langgenius/deepseek/deepseek",
+          "completion_params": {
+            "temperature": 0.1
+          }
+        },
+        "title": "要素抽取",
+        "memory": {
+          "window": {
+            "enabled": false
+          },
+          "role_prefix": null
+        },
+        "vision": {
+          "enabled": false
+        },
+        "context": {
+          "enabled": true,
+          "variable_selector": [
+            "flatten-text",
+            "flat_text"
+          ]
+        },
+        "selected": false,
+        "prompt_template": [
+          {
+            "id": "s2",
+            "role": "system",
+            "text": "你是专业法律文书录入员。从以下讯问/询问笔录中提取关键信息，直接输出JSON。\n\n规则：\n1. 只提取笔录中实际出现的内容，缺项填null\n2. 时间统一为：YYYY年MM月DD日HH时格式\n3. 违法事实(illegal_fact)：用法律文书语言还原，保留人时地事物因果\n4. suggested_laws按案件性质推荐法律条文，如盗窃案推荐《治安管理处罚法》第四十九条\n5. 直接输出JSON，不要思考过程"
+          },
+          {
+            "id": "u2",
+            "role": "user",
+            "text": "已识别文书类型：{{#llm-classify.text#}}\n\n笔录内容：\n{{#context#}}\n\n请提取并直接输出JSON（不要思考过程）：\n{\"elements\": {\"police_station\":\"办案单位\", \"party_name\":\"当事人姓名\", \"party_gender\":\"性别\", \"party_age\":\"年龄\", \"party_id_number\":\"身份证号\", \"party_address\":\"住址\", \"case_date\":\"案发时间\", \"case_location\":\"案发地点\", \"violation_type\":\"案件性质\", \"illegal_fact\":\"违法事实\", \"evidence_list\":\"证据\", \"party_statement\":\"当事人陈述\", \"officer_name\":\"办案人员\", \"amount_involved\":\"涉案金额\", \"items_involved\":\"涉案物品\", \"work_unit\":\"工作单位\", \"criminal_record\":\"前科\"}, \"suggested_laws\": [\"法律条文\"]}"
+          }
+        ]
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 87,
+      "position": {
+        "x": 382,
+        "y": 260
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 382,
+        "y": 260
+      }
+    },
+    {
+      "id": "llm-polish",
+      "data": {
+        "type": "llm",
+        "model": {
+          "mode": "chat",
+          "name": "deepseek-v4-flash",
+          "provider": "langgenius/deepseek/deepseek",
+          "completion_params": {
+            "temperature": 0.1
+          }
+        },
+        "title": "事实润色",
+        "memory": {
+          "window": {
+            "enabled": false
+          },
+          "role_prefix": null
+        },
+        "vision": {
+          "enabled": false
+        },
+        "context": {
+          "enabled": true,
+          "variable_selector": [
+            "flatten-text",
+            "flat_text"
+          ]
+        },
+        "selected": false,
+        "prompt_template": [
+          {
+            "id": "s3",
+            "role": "system",
+            "text": "将笔录中的案件事实润色为规范的公安法律文书用语。\n\n规则：\n1. 使用规范法律语言\n2. 保持七何要素（何人何时何地何事何因何果何证据）\n3. 去除口语词和主观词（可能/大概/好像/据说/应该）\n4. 精确保留时间/地点/人名/身份证号/金额等信息\n5. 按时间顺序叙述\n\n只输出润色后的事实段落，不要思考过程。"
+          },
+          {
+            "id": "u3",
+            "role": "user",
+            "text": "原始笔录：\n{{#context#}}\n\n请润色为规范法律文书事实段落："
+          }
+        ]
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 87,
+      "position": {
+        "x": 684,
+        "y": 260
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 684,
+        "y": 260
+      }
+    },
+    {
+      "id": "code-fill",
+      "data": {
+        "code": "import json\nimport re\nfrom datetime import date, datetime\n\n\ndef _strip_noise(text: str) -> str:\n    text = text or ''\n    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)\n    text = re.sub(r'```\\w*\\n?', '', text)\n    return text.strip()\n\n\ndef _extract_json_block(text: str):\n    text = _strip_noise(text)\n    start = text.find('{')\n    end = text.rfind('}')\n    if start != -1 and end > start:\n        text = text[start:end + 1]\n    text = re.sub(r',\\s*}', '}', text)\n    text = re.sub(r',\\s*]', ']', text)\n    return json.loads(text)\n\n\ndef _normalize_date(value):\n    if not value:\n        return ''\n    raw = str(value).replace('年', '-').replace('月', '-').replace('日', '').replace('时', ':').replace('分', '').strip()\n    for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):\n        try:\n            dt = datetime.strptime(raw, fmt)\n            if '%H' in fmt:\n                return dt.strftime('%Y年%m月%d日 %H时%M分')\n            return dt.strftime('%Y年%m月%d日')\n        except Exception:\n            continue\n    return str(value)\n\n\ndef _clean_content(text: str) -> str:\n    text = _strip_noise(text).replace('\\r\\n', '\\n').replace('\\r', '\\n')\n    cleaned = []\n    for line in text.split('\\n'):\n        line = re.sub(r'[ \\t]+', ' ', line).strip()\n        line = line.strip('：:;；，,。 ')\n        if not line:\n            continue\n        if cleaned and cleaned[-1] == line:\n            continue\n        cleaned.append(line)\n    return '\\n\\n'.join(cleaned).strip()\n\n\ndef _default_doc_number(police_station: str) -> str:\n    from time import time\n    prefix = (police_station or 'XX').replace('公安局', '').replace('分局', '')[:6]\n    return f'{prefix}公行罚决字[{date.today().year}]' + str(int(time() * 1000))[-6:] + '号'\n\n\ndef main(\n    case_text: str = '',\n    classify_text: str = '',\n    extract_text: str = '',\n    polish_text: str = ''\n) -> dict:\n    doc_type = ''\n    case_nature = ''\n    try:\n        classify = _extract_json_block(classify_text)\n        doc_type = classify.get('doc_type', '') or ''\n        case_nature = classify.get('case_nature', '') or ''\n    except Exception:\n        pass\n\n    elements = {}\n    laws = []\n    try:\n        extract = _extract_json_block(extract_text)\n        if isinstance(extract, dict):\n            elements = extract.get('elements', {}) or {}\n            if not case_nature:\n                case_nature = extract.get('case_nature', '') or ''\n            laws = extract.get('suggested_laws', []) or []\n    except Exception:\n        pass\n\n    if not doc_type:\n        doc_type = '行政处罚决定书'\n\n    for key, value in list(elements.items()):\n        if value is None:\n            elements[key] = ''\n        elif isinstance(value, str) and value.strip().lower() in ('null', 'none'):\n            elements[key] = ''\n\n    for key in (\n        'birth_date', 'case_date', 'penalty_decision_date', 'notification_time',\n        'inspection_time_start', 'inspection_time_end', 'identification_time_start',\n        'identification_time_end', 'crime_scene_time_start', 'crime_scene_time_end',\n        'search_time_start', 'search_time_end'\n    ):\n        if elements.get(key):\n            elements[key] = _normalize_date(elements[key])\n\n    polish_clean = _clean_content(polish_text)\n    case_text_clean = _clean_content(case_text)\n    fact_text = polish_clean or elements.get('illegal_fact') or case_text_clean\n\n    if doc_type == '行政处罚决定书':\n        elements['police_station'] = elements.get('police_station') or '藤县公安局'\n        elements['doc_number'] = elements.get('doc_number') or _default_doc_number(elements['police_station'])\n        elements['work_unit'] = elements.get('work_unit') or '无'\n        elements['criminal_record'] = elements.get('criminal_record') or '无'\n        elements['illegal_fact'] = fact_text\n        elements['evidence_list'] = elements.get('evidence_list') or '检查笔录、违法行为人的陈述和申辩、其他证据'\n        elements['penalty_basis'] = elements.get('penalty_basis') or '《中华人民共和国治安管理处罚法》相关规定'\n        elements['penalty_content'] = elements.get('penalty_content') or '依法作出相应行政处罚'\n        elements['execution_detail'] = elements.get('execution_detail') or '收到决定书之日起15日内按照本决定执行。'\n        elements['reconsideration_org'] = elements.get('reconsideration_org') or '藤县人民政府'\n        elements['lawsuit_court'] = elements.get('lawsuit_court') or '藤县人民法院'\n        elements['stamp_date'] = elements.get('stamp_date') or date.today().strftime('%Y-%m-%d')\n\n        content = '\\n\\n'.join([\n            elements['police_station'],\n            '行政处罚决定书',\n            elements['doc_number'],\n            f\"违法行为人{elements.get('party_name', '')}，{elements.get('party_gender', '')}，{elements.get('party_age', '')}岁，居民身份证号码{elements.get('party_id_number', '')}，{elements.get('birth_date', '')}出生，籍贯：{elements.get('native_place', '')}，户籍：{elements.get('household_register', '')}，现住：{elements.get('party_address', '')}，工作单位：{elements.get('work_unit', '')}，违法犯罪经历：{elements.get('criminal_record', '')}。\",\n            elements['illegal_fact'],\n            f\"上述事实有以下证据证实：{elements.get('evidence_list', '')}。\",\n            f\"根据{elements.get('penalty_basis', '')}之规定，现决定对违法行为人{elements.get('party_name', '')}处以{elements.get('penalty_content', '')}。\",\n            f\"执行方式和期限：{elements.get('execution_detail', '')}\",\n            '逾期不履行的，依法承担相应法律后果。',\n            '一式四份，被处罚人和执行单位各一份，一份附卷。',\n            f\"如不服本决定，可以在收到本决定书之日起六十日内向{elements.get('reconsideration_org', '')}申请行政复议或者在六个月内向{elements.get('lawsuit_court', '')}提起行政诉讼。\",\n            '附：清单共  份',\n            elements['police_station'],\n            elements['stamp_date'],\n            '行政处罚决定书已向我宣告并送达。',\n            '被处罚人:                        被侵害人：',\n            '年    月    日                  年    月    日',\n            '接收人员：',\n            '接收单位（印）',\n            '年    月    日',\n            '案件编号：',\n            '人员编号：',\n        ])\n    else:\n        content = fact_text or case_text_clean\n\n    return {\n        'content': _clean_content(content),\n        'doc_type': doc_type,\n        'case_nature': case_nature,\n        'elements': json.dumps(elements, ensure_ascii=False, indent=2),\n        'suggested_laws': '\\n'.join(str(item) for item in laws if item),\n    }\n",
+        "type": "code",
+        "title": "模板填充",
+        "outputs": {
+          "content": {
+            "type": "string"
+          },
+          "doc_type": {
+            "type": "string"
+          },
+          "elements": {
+            "type": "string"
+          },
+          "case_nature": {
+            "type": "string"
+          },
+          "suggested_laws": {
+            "type": "string"
+          }
+        },
+        "selected": false,
+        "variables": [
+          {
+            "variable": "case_text",
+            "value_selector": [
+              "flatten-text",
+              "flat_text"
+            ]
+          },
+          {
+            "variable": "classify_text",
+            "value_selector": [
+              "llm-classify",
+              "text"
+            ]
+          },
+          {
+            "variable": "extract_text",
+            "value_selector": [
+              "llm-extract",
+              "text"
+            ]
+          },
+          {
+            "variable": "polish_text",
+            "value_selector": [
+              "llm-polish",
+              "text"
+            ]
+          }
+        ],
+        "code_language": "python3"
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 51,
+      "position": {
+        "x": 986,
+        "y": 260
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 986,
+        "y": 260
+      }
+    },
+    {
+      "id": "end-node",
+      "data": {
+        "type": "end",
+        "title": "输出",
+        "outputs": [
+          {
+            "variable": "document",
+            "value_type": "string",
+            "value_selector": [
+              "code-fill",
+              "content"
+            ]
+          },
+          {
+            "variable": "word_download_link",
+            "value_type": "string",
+            "value_selector": [
+              "export-word",
+              "word_download_link"
+            ]
+          }
+        ],
+        "selected": true
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 114,
+      "position": {
+        "x": 1590,
+        "y": 260
+      },
+      "selected": true,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 1590,
+        "y": 260
+      }
+    },
+    {
+      "id": "export-word",
+      "data": {
+        "code": "import json\nimport urllib.request\n\n\nEXPORT_API = 'http://host.docker.internal:8123/api/export-word'\n\n\ndef main(input_text: str) -> dict:\n    content = str(input_text or '').strip()\n    if not content:\n        return {'word_download_link': ''}\n\n    payload = json.dumps({\n        'content': content,\n        'filename': 'generated-document.docx'\n    }, ensure_ascii=False).encode('utf-8')\n    req = urllib.request.Request(\n        EXPORT_API,\n        data=payload,\n        headers={'Content-Type': 'application/json; charset=utf-8'},\n        method='POST'\n    )\n\n    try:\n        with urllib.request.urlopen(req, timeout=12) as resp:\n            data = json.loads(resp.read().decode('utf-8'))\n        url = data.get('url') or ''\n        if not url:\n            return {'word_download_link': 'Word export failed: empty download url'}\n        label = chr(19979) + chr(36733) + 'Word' + chr(25991) + chr(26723)\n        return {'word_download_link': '[' + label + '](' + url + ')'}\n    except Exception as exc:\n        return {'word_download_link': 'Word export failed: ' + str(exc)}\n",
+        "type": "code",
+        "title": "Word Export",
+        "outputs": {
+          "word_download_link": {
+            "type": "string",
+            "children": null
+          }
+        },
+        "selected": false,
+        "variables": [
+          {
+            "variable": "input_text",
+            "value_selector": [
+              "code-fill",
+              "content"
+            ]
+          }
+        ],
+        "code_language": "python3"
+      },
+      "type": "custom",
+      "width": 242,
+      "height": 51,
+      "position": {
+        "x": 1288,
+        "y": 420
+      },
+      "selected": false,
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "positionAbsolute": {
+        "x": 1288,
+        "y": 420
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-doc",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "start",
+        "targetType": "document-extractor",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "start-node",
+      "target": "doc-extractor",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "doc-flatten",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "document-extractor",
+        "targetType": "code",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "doc-extractor",
+      "target": "flatten-text",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "flatten-classify",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "code",
+        "targetType": "llm",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "flatten-text",
+      "target": "llm-classify",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "flatten-extract",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "code",
+        "targetType": "llm",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "flatten-text",
+      "target": "llm-extract",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "flatten-polish",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "code",
+        "targetType": "llm",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "flatten-text",
+      "target": "llm-polish",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "classify-extract",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "llm",
+        "targetType": "llm",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "llm-classify",
+      "target": "llm-extract",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "extract-polish",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "llm",
+        "targetType": "llm",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "llm-extract",
+      "target": "llm-polish",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "classify-code",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "llm",
+        "targetType": "code",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "llm-classify",
+      "target": "code-fill",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "extract-code",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "llm",
+        "targetType": "code",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "llm-extract",
+      "target": "code-fill",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "polish-code",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "llm",
+        "targetType": "code",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "llm-polish",
+      "target": "code-fill",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "flatten-code",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "code",
+        "targetType": "code",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "flatten-text",
+      "target": "code-fill",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "code-export-word",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "code",
+        "targetType": "code",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "code-fill",
+      "target": "export-word",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    },
+    {
+      "id": "export-word-end",
+      "data": {
+        "isInLoop": false,
+        "sourceType": "code",
+        "targetType": "end",
+        "isInIteration": false
+      },
+      "type": "custom",
+      "source": "export-word",
+      "target": "end-node",
+      "zIndex": 0,
+      "sourceHandle": "source",
+      "targetHandle": "target"
+    }
+  ],
+  "viewport": {
+    "x": -953.5120137996687,
+    "y": 62.035471435128585,
+    "zoom": 0.8705505632961243
+  }
+}

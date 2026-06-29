@@ -1,0 +1,831 @@
+app:
+  description: 智能警务文书生成 —— 输入案情描述，选择文书类型，自动抽取要素并生成规范法律文书
+  icon: 📄
+  icon_background: '#1a3a5c'
+  icon_type: emoji
+  mode: workflow
+  name: 警务文书智能生成
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.15@725407927b04e236212083d20e92830d60fa944e42cd357ef6902c160414f6f1
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: 文书模板知识库ID（上传templates.json内容后获取）
+    id: env-template-kb
+    name: TEMPLATE_KB_ID
+    value: ''
+  - description: 法律法规知识库ID（上传laws.json内容后获取）
+    id: env-law-kb
+    name: LAW_KB_ID
+    value: ''
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      - .txt
+      - .doc
+      - .docx
+      allowed_file_types:
+      - image
+      - document
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: true
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: true
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: '我是警务文书智能生成助手。请描述案件情况并选择文书类型，我将为您生成规范的法律文书。支持以下10种文书：行政处罚决定书、检查笔录、现场勘查笔录、辨认笔录、搜查笔录、行政处罚告知笔录、调解协议书、扣押决定书、指认笔录、结案报告。'
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+    - 2025年6月10日，张三在北京市朝阳区某商场盗窃手机一部，价值5000元。帮我生成行政处罚决定书。
+    - 2025年5月20日晚，李四伙同王五在广州市天河区某小区入户盗窃现金2万元。生成检查笔录和指认笔录。
+    - 2025年6月1日，赵六在成都市武侯区某路口醉酒驾驶被查获。帮我生成辨认笔录。
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: knowledge-retrieval
+      id: start-to-template-retrieval
+      source: start-node
+      sourceHandle: source
+      target: template-retrieval
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: knowledge-retrieval
+      id: start-to-law-retrieval
+      source: start-node
+      sourceHandle: source
+      target: law-retrieval
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: template-to-llm-extract
+      source: template-retrieval
+      sourceHandle: source
+      target: llm-extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: law-to-llm-polish
+      source: law-retrieval
+      sourceHandle: source
+      target: llm-extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: llm-extract-to-llm-polish
+      source: llm-extract
+      sourceHandle: source
+      target: llm-polish
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: llm-polish-to-code-fill
+      source: llm-polish
+      sourceHandle: source
+      target: code-fill-template
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: code-to-end
+      source: code-fill-template
+      sourceHandle: source
+      target: end-node
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 输入案件描述并选择要生成的文书类型
+        selected: false
+        title: 案件信息输入
+        type: start
+        variables:
+        - hint: 请详细描述案件经过，包括时间、地点、人物、行为、结果等要素
+          label: 案情描述
+          max_length: 5000
+          options: []
+          placeholder: '例如：2025年6月10日14时许，张三（男，身份证号110101199001011234）在北京市朝阳区某商场内盗窃一部iPhone 15手机，价值5000元。被商场保安当场抓获，民警到场后将张三传唤至朝阳分局XX派出所接受调查。'
+          required: true
+          type: paragraph
+          variable: case_text
+        - hint: 选择要生成的法律文书类型
+          label: 文书类型
+          max_length: 48
+          options:
+          - 行政处罚决定书
+          - 检查笔录
+          - 现场勘查笔录
+          - 辨认笔录
+          - 搜查笔录
+          - 行政处罚告知笔录
+          - 调解协议书
+          - 扣押决定书
+          - 指认笔录
+          - 结案报告
+          placeholder: 请选择文书类型
+          required: true
+          type: select
+          variable: doc_type
+      height: 198
+      id: start-node
+      position:
+        x: 30
+        y: 300
+      positionAbsolute:
+        x: 30
+        y: 300
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    - data:
+        dataset_ids: []
+        model:
+          completion_params: {}
+          mode: chat
+          name: ''
+          provider: ''
+        multiple_retrieval_config: null
+        query:
+          operation: and
+          variable_selector:
+          - start-node
+          - doc_type
+        retrieval_mode: hybrid
+        retrieve_config:
+          reranking_enabled: true
+          top_k: 3
+          score_threshold: 0.3
+          enable_deduplication: true
+          enable_weighted_score: false
+        selected: false
+        title: 检索文书模板
+        type: knowledge-retrieval
+        variable_entity_map: {}
+      height: 86
+      id: template-retrieval
+      position:
+        x: 340
+        y: 240
+      positionAbsolute:
+        x: 340
+        y: 240
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 240
+    - data:
+        dataset_ids: []
+        model:
+          completion_params: {}
+          mode: chat
+          name: ''
+          provider: ''
+        multiple_retrieval_config: null
+        query:
+          operation: and
+          variable_selector:
+          - start-node
+          - case_text
+        retrieval_mode: hybrid
+        retrieve_config:
+          reranking_enabled: true
+          top_k: 5
+          score_threshold: 0.3
+          enable_deduplication: true
+          enable_weighted_score: false
+        selected: false
+        title: 检索相关法条
+        type: knowledge-retrieval
+        variable_entity_map: {}
+      height: 86
+      id: law-retrieval
+      position:
+        x: 340
+        y: 360
+      positionAbsolute:
+        x: 340
+        y: 360
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 240
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - start-node
+          - doc_type
+        memory:
+          role_prefix: null
+          window:
+            enabled: false
+        model:
+          completion_params:
+            temperature: 0.1
+            max_tokens: 4096
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: system-prompt-extract
+          role: system
+          text: "你是一名公安文书处理专家。请从民警输入的案情描述中抽取关键信息要素。\n\
+            \n\
+            ## 重要规则\n\
+            1. 仅从输入信息中提取，严禁编造数据\n\
+            2. 时间要素精确到分钟，格式必须为 YYYY-MM-DD HH:MM，严禁只输出日期\n\
+            3. 涉案人员信息（姓名、身份证号、住址、联系方式）必须完整提取，缺项填null\n\
+            4. 地点信息从大到小完整记录\n\
+            5. 金额、数量等数值保持原始表述\n\
+            6. 法条引用：行政案件优先引用2026年新版《治安管理处罚法》实体性条款\n\n\
+            \n\
+            ## 已检索到的文书模板格式要求\n\
+            请根据模板中的字段定义来抽取要素，确保每个字段都按模板要求的格式输出。\n\
+            {% if template-retrieval.result is defined %}\n\
+            模板信息：{{template-retrieval.result}}\n\
+            {% endif %}\n\
+            \n\
+            ## 已检索到的相关法条\n\
+            {% if law-retrieval.result is defined %}\n\
+            {{law-retrieval.result}}\n\
+            {% endif %}"
+        - id: user-prompt-extract
+          role: user
+          text: "## 文书类型\n{{#start-node.doc_type#}}\n\n## 案情描述\n{{#start-node.case_text#}}\n\
+            \n\
+            请严格按照以下 JSON 格式输出，不得遗漏任何要素：\n\
+            ```json\n\
+            {\n  \"elements\": {\n    \"field_key\": \"抽取的值或null\"\n  },\n  \"case_nature\": \"案件性质/案由\"\n}\n\
+            ```\n\n\
+            根据文书类型抽取对应的关键字段。常见字段包括但不限于：\n\
+            - 行政处罚决定书：party_name, party_gender, party_id_number, birth_date, household_register, \
+            police_station, illegal_fact, penalty_basis, penalty_content, penalty_decision_date, \
+            violation_type, case_occurrence_date, department, doc_number\n\
+            - 检查笔录：inspection_time_start, inspection_time_end, inspection_place, \
+            inspection_target, inspector_name, inspector_unit, witness_name, items_found, injury_found\n\
+            - 辨认笔录：identification_time_start, identification_time_end, identification_place, \
+            identifier_name, identification_target, investigator_name, investigator_unit, witness_name\n\
+            - 现场勘查笔录：crime_scene_time_start, crime_scene_time_end, crime_scene_place, \
+            scene_description, investigator_name, recorder_name, witness_name\n\
+            - 搜查笔录：search_time_start, search_time_end, search_place, search_target, \
+            search_warrant_number, executor_name, items_seized, witness_name\n\
+            - 行政处罚告知笔录：notification_time, party_name, violation_type, proposed_penalty, \
+            penalty_basis, evidence_list, notified_person_statement\n\
+            - 调解协议书：party_a_name, party_b_name, dispute_description, mediation_result, \
+            mediation_date, mediator_name, police_station\n\
+            - 扣押决定书：party_name, seizure_date, seized_items, legal_basis, seizure_duration, \
+            police_station, case_number\n\
+            - 指认笔录：identification_time_start, identification_time_end, identification_place, \
+            identifier_name, identification_target, case_location, violation_type\n\
+            - 结案报告：case_number, party_name, case_nature, investigation_summary, \
+            evidence_summary, processing_opinion, officer_name, submission_date"
+        selected: false
+        title: 要素抽取 (LLM)
+        type: llm
+        vision:
+          enabled: false
+      height: 105
+      id: llm-extract
+      position:
+        x: 630
+        y: 220
+      positionAbsolute:
+        x: 630
+        y: 220
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 280
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - start-node
+          - doc_type
+        memory:
+          role_prefix: null
+          window:
+            enabled: false
+        model:
+          completion_params:
+            temperature: 0.1
+            max_tokens: 2048
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: system-prompt-polish
+          role: system
+          text: "你是一名公安文书撰写专家。请将事实描述润色为规范的公安法律文书语言。\n\
+            \n\
+            ## 要求\n\
+            1. 使用规范的公安法律文书用语\n\
+            2. 保持\"七何要素\"完整——何人、何时、何地、何事、何因、何果\n\
+            3. 去除口语化表达、主观臆断词汇（\"可能\"\"大概\"\"好像\"\"据说\"）\n\
+            4. 保持事实准确，不添加、删减原始描述中没有的信息\n\
+            5. 时间、地点、人名、身份证号、金额等关键信息不得改动\n\
+            6. 行为动作使用确定性法律用语\n\
+            7. 涉及伤情的使用客观描述（部位、大小、颜色、形态）\n\n\
+            \n\
+            直接输出润色后的事实描述段落，不要添加任何说明。"
+        - id: user-prompt-polish
+          role: user
+          text: "## 文书类型\n{{#start-node.doc_type#}}\n\n## 原始案情\n{{#start-node.case_text#}}\n\
+            \n## LLM已抽取的要素\n{{#llm-extract.text#}}\n\n\
+            请从上述信息中提取出主要案件事实段落，润色为规范的法律文书语言。只输出润色后的事实描述。"
+        selected: false
+        title: 事实润色 (LLM)
+        type: llm
+        vision:
+          enabled: false
+      height: 105
+      id: llm-polish
+      position:
+        x: 630
+        y: 400
+      positionAbsolute:
+        x: 630
+        y: 400
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 280
+    - data:
+        code: |
+          import json
+          import re
+          from datetime import date, datetime
+
+          def main(
+              llm_extract_text: str,
+              polished_fact: str,
+              template_result: str,
+              law_result: str,
+              doc_type: str,
+              case_text: str
+          ) -> dict:
+              """三段式文书生成：解析JSON → 字段后处理 → 模板填充"""
+
+              # ========== 第一段：解析 LLM 抽取的 JSON 要素 ==========
+              elements = {}
+              case_nature = ""
+              try:
+                  text = llm_extract_text.strip()
+                  # 去除 <｜end▁of▁thinking｜> 标签
+                  text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
+                  # 提取 JSON
+                  for marker in ("```json", "```"):
+                      if marker in text:
+                          parts = text.split(marker)
+                          if len(parts) >= 2:
+                              inner = parts[1].split("```")
+                              if inner:
+                                  text = inner[0].strip()
+                                  break
+                  # 找最外层花括号
+                  brace_start = text.find("{")
+                  brace_end = text.rfind("}")
+                  if brace_start != -1 and brace_end > brace_start:
+                      text = text[brace_start:brace_end + 1]
+                  data = json.loads(text)
+                  elements = data.get("elements", {}) if isinstance(data, dict) else {}
+                  case_nature = data.get("case_nature", "") if isinstance(data, dict) else ""
+              except (json.JSONDecodeError, Exception):
+                  elements = {}
+                  case_nature = ""
+
+              # ========== 第二段：字段后处理 (FieldProcessor) ==========
+
+              # 2.1 将润色后的事实替换到 elements 中
+              if polished_fact and polished_fact.strip():
+                  fact_keys = [
+                      "illegal_fact", "case_brief", "case_fact", "fact_description",
+                      "dispute_fact", "inspection_process", "inspection_findings",
+                      "search_process", "investigation_summary", "case_summary",
+                      "scene_description", "identification_process",
+                      "case_background", "identification_results",
+                  ]
+                  for fk in fact_keys:
+                      if fk in elements and elements[fk]:
+                          elements[fk] = polished_fact.strip()
+                          break
+
+              # 2.2 日期标准化
+              def normalize_datetime(val):
+                  if not val:
+                      return ""
+                  val = str(val).replace("年", "-").replace("月", "-").replace("日", "").strip()
+                  for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                      try:
+                          dt = datetime.strptime(val, fmt)
+                          return dt.strftime("%Y-%m-%d %H:%M")
+                      except ValueError:
+                          continue
+                  return str(val)
+
+              time_keys = [
+                  "inspection_time_start", "inspection_time_end",
+                  "identification_time_start", "identification_time_end",
+                  "crime_scene_time_start", "crime_scene_time_end",
+                  "search_time_start", "search_time_end",
+                  "notification_time", "case_occurrence_date",
+                  "penalty_decision_date"
+              ]
+              for tk in time_keys:
+                  if tk in elements and elements[tk]:
+                      elements[tk] = normalize_datetime(elements[tk])
+
+              # 2.3 检查笔录默认值
+              if doc_type == "检查笔录":
+                  if not elements.get("items_found") or str(elements.get("items_found")).strip() in ("null", "None", "", "无", "未发现"):
+                      elements["items_found"] = "没有发现任何涉案物品"
+                  if not elements.get("injury_found") or str(elements.get("injury_found")).strip() in ("null", "None", "", "无", "未发现"):
+                      elements["injury_found"] = "无任何损伤"
+
+              # 2.4 行政处罚决定书默认值
+              if doc_type == "行政处罚决定书":
+                  for fk in ["work_unit", "criminal_record"]:
+                      if not elements.get(fk) or str(elements.get(fk)).strip() in ("null", "None", ""):
+                          elements[fk] = "无"
+                  if not elements.get("execution_detail"):
+                      elements["execution_detail"] = "收到决定书之日起15日内将罚款交到指定银行财政罚没专户。"
+
+              # 2.5 行政处罚告知笔录默认值
+              if doc_type == "行政处罚告知笔录":
+                  if not elements.get("evidence_list"):
+                      elements["evidence_list"] = "检查笔录、违法行为人的陈述和申辩，其他"
+                  if not elements.get("notified_person_statement"):
+                      elements["notified_person_statement"] = "我不提出陈述和申辩。"
+
+              # 2.6 辨认笔录 - 自动生成辨认结论
+              if doc_type == "辨认笔录":
+                  if not elements.get("identification_conclusion"):
+                      elements["identification_conclusion"] = "至此，辨认结束。"
+
+              # ========== 第三段：模板填充 ==========
+              # 从知识库检索结果中提取模板文本
+              template_text = ""
+              if template_result:
+                  if isinstance(template_result, str):
+                      template_text = template_result
+                  elif isinstance(template_result, list):
+                      for item in template_result:
+                          if isinstance(item, dict):
+                              template_text = item.get("content", "") or item.get("text", "") or item.get("template_text", "")
+                              if template_text:
+                                  break
+
+              # 如果知识库检索没有模板，使用内置模板
+              if not template_text:
+                  template_text = get_default_template(doc_type)
+
+              # 执行 {{placeholder}} 替换
+              content = template_text
+              for key, value in elements.items():
+                  placeholder = "{{" + key + "}}"
+                  if value is None or str(value).lower() in ("none", "null", ""):
+                      content = content.replace(placeholder, "")
+                  else:
+                      content = content.replace(placeholder, str(value))
+
+              # 清理未被替换的占位符
+              content = re.sub(r'\{\{\w+\}\}', '', content)
+
+              # 组装法条建议
+              law_text = ""
+              if law_result:
+                  if isinstance(law_result, str):
+                      law_text = law_result
+                  elif isinstance(law_result, list):
+                      law_text = "\n".join(
+                          item.get("content", "") if isinstance(item, dict) else str(item)
+                          for item in law_result[:5]
+                      )
+
+              return {
+                  "content": content.strip(),
+                  "elements": elements,
+                  "case_nature": case_nature,
+                  "suggested_laws": law_text,
+                  "doc_type": doc_type
+              }
+
+
+          def get_default_template(doc_type: str) -> str:
+              """内置默认模板（知识库不可用时的兜底）"""
+              templates = {
+                  "检查笔录": """{{police_station}}
+          检查笔录
+
+          时间：{{inspection_time_start}}起至{{inspection_time_end}}止
+          地点：{{inspection_place}}
+          检查人：{{inspector_name}}，{{inspector_unit}}
+          被检查人：{{inspection_target}}，{{inspection_target_display}}
+          见证人：{{witness_name}}
+
+          检查目的：{{inspection_reason}}
+
+          检查过程及结果：
+          {{inspection_process}}
+
+          检查发现物品：{{items_found}}
+          伤情情况：{{injury_found}}
+
+          被检查人：__________
+          检查人：__________
+          见证人：__________
+          日期：{{inspection_date}}""",
+
+                  "行政处罚决定书": """{{police_station}}
+          行政处罚决定书
+
+          {{doc_number}}
+
+          当事人：{{party_name}}，{{party_gender}}，{{party_age}}岁
+          身份证号码：{{party_id_number}}
+          出生日期：{{birth_date}}
+          户籍地：{{household_register}}
+          现住址：{{party_address}}
+          工作单位：{{work_unit}}
+
+          现查明：{{illegal_fact}}
+
+          以上事实有{{evidence_list}}等证据证实。
+
+          根据{{penalty_basis}}之规定，决定给予{{penalty_content}}。
+
+          执行方式和期限：{{execution_detail}}
+
+          如不服本决定，可在收到本决定书之日起六十日内向{{reconsideration_org}}申请行政复议，或者在六个月内向{{lawsuit_court}}提起行政诉讼。
+
+          {{police_station}}
+          {{stamp_date}}
+
+          当事人：__________""",
+
+                  "行政处罚告知笔录": """{{police_station}}
+          行政处罚告知笔录
+
+          告知时间：{{notification_time}}
+          告知地点：{{notification_place}}
+          被告知人：{{party_name}}
+
+          告知内容：
+          你的行为已构成{{violation_type}}，根据{{penalty_basis}}之规定，拟对你作出{{proposed_penalty}}。
+
+          证据：{{evidence_list}}
+
+          对上述告知事项，你是否提出陈述和申辩？
+          被告知人陈述：{{notified_person_statement}}
+
+          被告知人：__________
+          告知人：__________
+          日期：__________""",
+
+                  "辨认笔录": """{{police_station}}
+          辨认笔录
+
+          时间：{{identification_time_start}}起至{{identification_time_end}}止
+          地点：{{identification_place}}
+          办案人员：{{investigator_display}}
+          辨认人：{{identifier_display}}
+          见证人：{{witness_name_display}}
+          辨认对象：{{identification_target_display}}
+
+          辨认目的：{{identification_purpose}}
+
+          案件背景：{{case_background}}
+
+          辨认过程及结果：
+          {{identification_operation}}
+          {{identification_results}}
+
+          {{identification_conclusion}}
+
+          以上笔录，{{identification_confirmation}}
+
+          辨认人：__________
+          办案人员：__________
+          见证人：__________
+          日期：{{identification_date}}""",
+
+                  "现场勘查笔录": """{{police_station}}
+          现场勘查笔录
+
+          勘查时间：{{crime_scene_time_start}}起至{{crime_scene_time_end}}止
+          勘查地点：{{crime_scene_place}}
+          勘查人员：{{investigator_name}}，{{investigator_unit}}
+          记录人：{{recorder_name}}
+          见证人：{{witness_name}}
+
+          现场情况：
+          {{scene_description}}
+
+          勘查人：__________
+          记录人：__________
+          见证人：__________
+          日期：__________""",
+
+                  "搜查笔录": """{{police_station}}
+          搜查笔录
+
+          时间：{{search_time_start}}起至{{search_time_end}}止
+          地点：{{search_place}}
+          搜查证字号：{{search_warrant_number}}
+          执行人：{{executor_name}}
+          被搜查人：{{search_target}}
+          见证人：{{witness_name}}
+
+          搜查过程及结果：
+          {{search_process}}
+
+          扣押物品：{{items_seized}}
+
+          被搜查人：__________
+          执行人：__________
+          见证人：__________
+          日期：__________""",
+              }
+
+              if doc_type in templates:
+                  return templates[doc_type]
+
+              # 通用模板
+              return """{{police_station}}
+          {{doc_type}}
+
+          案件编号：{{case_number}}
+
+          当事人：{{party_name}}
+          案件性质：{{case_nature}}
+
+          {{illegal_fact}}
+
+          {{investigation_summary}}
+
+          承办人：{{officer_name}}
+          日期：{{submission_date}}"""
+        code_language: python3
+        outputs:
+          content:
+            children: null
+            type: string
+          elements:
+            children: null
+            type: object
+          case_nature:
+            children: null
+            type: string
+          doc_type:
+            children: null
+            type: string
+        selected: false
+        title: 模板填充 + 字段后处理 (Code)
+        type: code
+        variables:
+        - value_selector:
+          - llm-extract
+          - text
+          variable: llm_extract_text
+        - value_selector:
+          - llm-polish
+          - text
+          variable: polished_fact
+        - value_selector:
+          - template-retrieval
+          - result
+          variable: template_result
+        - value_selector:
+          - law-retrieval
+          - result
+          variable: law_result
+        - value_selector:
+          - start-node
+          - doc_type
+          variable: doc_type
+        - value_selector:
+          - start-node
+          - case_text
+          variable: case_text
+      height: 120
+      id: code-fill-template
+      position:
+        x: 960
+        y: 300
+      positionAbsolute:
+        x: 960
+        y: 300
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 300
+    - data:
+        outputs:
+        - value_selector:
+          - code-fill-template
+          - content
+          value_type: string
+          variable: document_content
+        - value_selector:
+          - code-fill-template
+          - elements
+          value_type: object
+          variable: extracted_elements
+        - value_selector:
+          - code-fill-template
+          - doc_type
+          value_type: string
+          variable: output_doc_type
+        selected: false
+        title: 最终输出
+        type: end
+      height: 120
+      id: end-node
+      position:
+        x: 1320
+        y: 300
+      positionAbsolute:
+        x: 1320
+        y: 300
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 260
+    viewport:
+      x: -50
+      y: -50
+      zoom: 0.85
+  rag_pipeline_variables: []

@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Logs
+*.log
+
+# Archives (generated packages)
+*.zip
+
+# Generated/output files
+*.docx
+*.jpeg
+*.jpg
+*.png
+
+# Test payloads and responses
+*_payload.json
+*_response*.json
+*_download_url.txt
+*_test.docx
+test_api_token*.txt
+
+# Backups
+work/backup_*/
+
+# Environment (contains secrets)
+.env
+!.env.example
+
+# Docker volumes
+volumes/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

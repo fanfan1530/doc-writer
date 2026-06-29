@@ -1,0 +1,1143 @@
+app:
+  description: 上传Word笔录，一键生成公安法律文书；Word由内网单台电脑导出服务生成
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: 警务文书智能生成（内网单机导出服务版）
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.17@f7a5c1d222d17ee419b17a80d6e4923838fe93788dc724a3af73fbc6990b3a32
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .docx
+      - .doc
+      allowed_file_types:
+      - document
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: true
+      fileUploadConfig:
+        audio_file_size_limit: 500
+        batch_count_limit: 10
+        file_size_limit: 200
+        image_file_size_limit: 100
+        video_file_size_limit: 1000
+        workflow_file_upload_limit: 100
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: document-extractor
+      id: start-doc
+      source: start-node
+      sourceHandle: source
+      target: doc-extractor
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: code
+      id: doc-flatten
+      source: doc-extractor
+      sourceHandle: source
+      target: flatten-text
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: flatten-classify
+      source: flatten-text
+      sourceHandle: source
+      target: llm-classify
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: flatten-extract
+      source: flatten-text
+      sourceHandle: source
+      target: llm-extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: flatten-polish
+      source: flatten-text
+      sourceHandle: source
+      target: llm-polish
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: classify-extract
+      source: llm-classify
+      sourceHandle: source
+      target: llm-extract
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: llm
+      id: extract-polish
+      source: llm-extract
+      sourceHandle: source
+      target: llm-polish
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: classify-code
+      source: llm-classify
+      sourceHandle: source
+      target: code-fill
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: extract-code
+      source: llm-extract
+      sourceHandle: source
+      target: code-fill
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: polish-code
+      source: llm-polish
+      sourceHandle: source
+      target: code-fill
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: flatten-code
+      source: flatten-text
+      sourceHandle: source
+      target: code-fill
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: code-export-word
+      source: code-fill
+      sourceHandle: source
+      target: export-word
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: export-word-end
+      source: export-word
+      sourceHandle: source
+      target: end-node
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 选择要生成的文书类型，上传笔录Word文档，AI自动解析并按模板导出Word
+        selected: false
+        title: 选择文书并上传笔录
+        type: start
+        variables:
+        - hint: 选择本次要生成的公安法律文书
+          label: 文书类型
+          max_length: 48
+          options:
+          - 行政处罚决定书
+          - 检查笔录
+          - 辨认笔录
+          - 入所表
+          - 前科证明
+          placeholder: 请选择文书类型
+          required: true
+          type: select
+          variable: document_type
+        - hint: 生成检查笔录时可不上传照片；上传时请提供两张
+          label: 身体检查照片
+          max_length: 48
+          options:
+          - 不上传检查照片
+          - 上传两张检查照片
+          placeholder: 检查笔录可选
+          required: false
+          type: select
+          variable: photo_upload_choice
+        - allowed_file_extensions:
+          - .docx
+          allowed_file_types:
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          hint: 请上传 .docx 文件；旧版 .doc 需先用 Word 另存为 .docx
+          label: 笔录文件（.docx）
+          required: true
+          type: file
+          variable: transcript
+        - allowed_file_extensions:
+          - .jpg
+          - .jpeg
+          - .png
+          - .bmp
+          - .webp
+          allowed_file_types:
+          - image
+          allowed_file_upload_methods:
+          - local_file
+          hint: 生成检查笔录时使用，留空则照片页为空白
+          label: 检查照片1（可选）
+          required: false
+          type: file
+          variable: check_photo_1
+        - allowed_file_extensions:
+          - .jpg
+          - .jpeg
+          - .png
+          - .bmp
+          - .webp
+          allowed_file_types:
+          - image
+          allowed_file_upload_methods:
+          - local_file
+          hint: 生成检查笔录时使用，留空则照片页为空白
+          label: 检查照片2（可选）
+          required: false
+          type: file
+          variable: check_photo_2
+      height: 238
+      id: start-node
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        selected: false
+        title: 文档解析
+        type: document-extractor
+        variable_selector:
+        - start-node
+        - transcript
+      height: 92
+      id: doc-extractor
+      position:
+        x: 394
+        y: 392
+      positionAbsolute:
+        x: 394
+        y: 392
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "def main(text):\n    if isinstance(text, list):\n        return {'flat_text':\
+          \ chr(10).join(str(t) for t in text)}\n    return {'flat_text': str(text)\
+          \ if text else ''}\n"
+        code_language: python3
+        outputs:
+          flat_text:
+            type: string
+        selected: false
+        title: 文本合并
+        type: code
+        variables:
+        - value_selector:
+          - doc-extractor
+          - text
+          variable: text
+      height: 54
+      id: flatten-text
+      position:
+        x: 684
+        y: 282
+      positionAbsolute:
+        x: 684
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - flatten-text
+          - flat_text
+        memory:
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: s1
+          role: system
+          text: '你是一名公安法制民警。用户选择的目标文书类型是：{{#start-node.document_type#}}。
+
+
+            要求：
+
+            1. 如果用户选择了“行政处罚决定书”“检查笔录”“辨认笔录”“入所表”或“前科证明”，doc_type必须以用户选择为准。
+
+            2. 同时根据笔录内容识别具体涉嫌违法行为/罪名名称，例如：扰乱公共场所秩序、盗窃、殴打他人、寻衅滋事、赌博、吸毒、帮助信息网络犯罪活动。
+
+            3. 不要输出“行政案件”“治安案件”这类泛称。
+
+
+            直接输出JSON，不要任何思考过程：
+
+            {"doc_type": "文书名称", "case_nature": "具体涉嫌违法行为或罪名"}'
+        - id: u1
+          role: user
+          text: '笔录内容：
+
+            {{#context#}}'
+        selected: false
+        title: 识别文书类型
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm-classify
+      position:
+        x: 382
+        y: 100
+      positionAbsolute:
+        x: 382
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - flatten-text
+          - flat_text
+        memory:
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: s2
+          role: system
+          text: '你是专业公安法律文书录入员。用户选择的目标文书类型是：{{#start-node.document_type#}}。从笔录中提取生成目标文书需要的字段，直接输出JSON。
+
+
+            通用规则：
+
+            1. 只提取笔录中实际出现的内容，缺项填null，不要编造姓名、身份证号、地点。
+
+            2. 时间尽量输出到分钟，格式如：2026年05月29日11时15分。
+
+            3. violation_type填写具体涉嫌违法行为/罪名名称。
+
+
+            如果目标文书是行政处罚决定书：
+
+            - illegal_fact只写处罚书事实段需要的事实：时间、地点、人员、起因、核心行为、后果/影响；不要堆砌调查过程、到案过程、扣押过程和证据清单。
+
+            - illegal_fact控制在150到450字，末尾写明“其行为涉嫌/构成××违法行为”。
+
+
+            如果目标文书是检查笔录：
+
+            - 必须提取检查笔录字段：检查开始时间、结束时间、地点、检查人单位、检查/辨认对象、当事人基本情况、见证人基本情况、事由和目的、过程和结果、办案单位、办案人员。
+
+            - process_result只写“过程和结果”段，保留出示人民警察证、检查对象、检查结果、配合情况等内容，不要写处罚决定书事实段。
+
+
+            如果目标文书是辨认笔录：
+
+            - 必须提取辨认笔录字段：辨认开始时间、结束时间、地点、办案人员及单位、辨认人姓名和地址、见证人姓名/单位/住址、辨认对象、辨认目的、辨认过程、辨认结果。
+
+            - identification_process只写辨认过程正文，包括辨认人与案件关系、办案人员准备照片组、编号排列、告知辨认要求、见证人在场、辨认人进行辨认等内容。
+
+            - identification_results必须按行列出辨认结果，例如“辨认照片一组中（11）号照片的人就是张旭；”，不要合并成一大段。
+
+
+            如果目标文书是入所表：
+
+            - 只提取被拘留人入所材料需要的基础信息、案由、违法事实、送拘单位、送拘人员、联系电话、入所时间、拘留期限、决定拘留机关等字段。
+
+            - 不要生成完整法律文书正文；entry_fact只写信息卡“违法事实”栏需要的简短事实。
+
+
+            如果目标文书是前科证明：
+
+            - 只提取证明对象的姓名、性别、出生日期、身份证件类型及号码、户籍住址、出具单位、出具日期、是否发现违法犯罪记录。
+
+            - 不要生成行政处罚事实段、检查过程、辨认过程或入所材料。
+
+
+            直接输出JSON，不要思考过程。'
+        - id: u2
+          role: user
+          text: "用户选择文书类型：{{#start-node.document_type#}}\n已识别文书类型和案由：{{#llm-classify.text#}}\n\
+            \n笔录内容：\n{{#context#}}\n\n请提取并直接输出JSON（不要思考过程）：\n{\"elements\": {\n  \"\
+            police_station\":\"公安机关/办案单位\",\n  \"party_name\":\"当事人姓名\",\n  \"party_gender\"\
+            :\"性别\",\n  \"party_age\":\"年龄\",\n  \"party_id_number\":\"身份证号\",\n \
+            \ \"party_address\":\"住址\",\n  \"case_date\":\"案发或检查时间\",\n  \"case_location\"\
+            :\"案发或检查地点\",\n  \"violation_type\":\"具体涉嫌违法行为或罪名\",\n  \"illegal_fact\"\
+            :\"行政处罚决定书精简事实段\",\n  \"evidence_list\":\"证据\",\n  \"party_statement\"\
+            :\"当事人陈述\",\n  \"officer_name\":\"办案人员\",\n  \"amount_involved\":\"涉案金额\"\
+            ,\n  \"items_involved\":\"涉案物品\",\n  \"work_unit\":\"工作单位\",\n  \"criminal_record\"\
+            :\"前科\",\n  \"inspection_time_start\":\"检查开始时间\",\n  \"inspection_time_end\"\
+            :\"检查结束时间\",\n  \"inspection_location\":\"检查地点\",\n  \"inspector_names\"\
+            :\"检查人姓名\",\n  \"inspector_unit_1\":\"检查人工作单位第一行\",\n  \"inspector_unit_2\"\
+            :\"检查人工作单位第二行\",\n  \"inspection_object\":\"检查或者辨认对象\",\n  \"witness_name\"\
+            :\"见证人姓名\",\n  \"witness_gender\":\"见证人性别\",\n  \"witness_id_number\"\
+            :\"见证人身份证号\",\n  \"reason_purpose\":\"检查事由和目的\",\n  \"process_result\"\
+            :\"检查过程和结果\",\n  \"recorder_name\":\"记录人\",\n  \"handling_unit\":\"办案单位\"\
+            ,\n  \"footer_date\":\"页脚时间\",\n  \"identification_time_start\":\"辨认开始时间\"\
+            ,\n  \"identification_time_end\":\"辨认结束时间\",\n  \"identification_location\"\
+            :\"辨认地点\",\n  \"identifier_name\":\"辨认人姓名\",\n  \"identifier_address\"\
+            :\"辨认人地址或身份证号\",\n  \"witness_unit\":\"见证人单位\",\n  \"witness_address\"\
+            :\"见证人住址\",\n  \"identification_object\":\"辨认对象\",\n  \"identification_purpose\"\
+            :\"辨认目的\",\n  \"identification_process\":\"辨认过程正文\",\n  \"identification_results\"\
+            :[\"辨认结果逐行\"],\n  \"handling_officers\":\"办案人员\",\n  \"recognizer_name\"\
+            :\"辨认人姓名备用字段\",\n  \"entry_date\":\"入所时间\",\n  \"detention_date\":\"拘留起始日期\"\
+            ,\n  \"detention_period\":\"拘留期限天数\",\n  \"case_name\":\"案由/案别\",\n  \"\
+            birth_date\":\"出生日期\",\n  \"ethnicity\":\"民族\",\n  \"education\":\"文化程度\"\
+            ,\n  \"marital_status\":\"婚姻状况\",\n  \"native_place\":\"籍贯\",\n  \"household_register\"\
+            :\"户籍所在地\",\n  \"household_register_detail\":\"户籍地详址\",\n  \"residence_district\"\
+            :\"现住址区划\",\n  \"occupation\":\"职业\",\n  \"political_status\":\"政治面貌\"\
+            ,\n  \"religion\":\"宗教信仰\",\n  \"alias\":\"别名/绰号\",\n  \"former_name\"\
+            :\"曾用名\",\n  \"accent\":\"口音\",\n  \"sending_unit\":\"送拘单位名称\",\n  \"\
+            escort_officers\":\"送拘执行人员姓名\",\n  \"escort_phone\":\"送拘执行人员联系电话\",\n\
+            \  \"detention_type\":\"收拘类型/送拘凭证类别\",\n  \"decision_agency\":\"决定拘留机关名称\"\
+            ,\n  \"entry_fact\":\"入所登记表违法事实栏\",\n  \"id_type\":\"身份证件类型\",\n  \"household_address\"\
+            :\"户籍住址\",\n  \"issuing_agency\":\"前科证明出具单位\",\n  \"issue_date\":\"前科证明出具日期\"\
+            ,\n  \"criminal_record_result\":\"是否发现违法犯罪记录\"\n}, \"suggested_laws\"\
+            : [\"法律条文\"]}"
+        selected: false
+        title: 要素抽取
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm-extract
+      position:
+        x: 382
+        y: 260
+      positionAbsolute:
+        x: 382
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - flatten-text
+          - flat_text
+        memory:
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+        model:
+          completion_params:
+            temperature: 0.1
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: s3
+          role: system
+          text: '根据用户选择的文书类型润色对应段落。用户选择的目标文书类型是：{{#start-node.document_type#}}。
+
+
+            如果目标文书是行政处罚决定书：
+
+            1. 只输出一段事实，不分条，不写标题，不写证据清单。
+
+            2. 精简但事实清楚，控制在150到450字。
+
+            3. 写清违法行为人、时间、地点、起因、核心行为、造成的影响/后果。
+
+            4. 删除到案、传唤、接受调查、手机扣押、审批等过程性内容。
+
+            5. 末尾写明具体涉嫌违法行为/罪名，例如“其行为涉嫌扰乱公共场所秩序违法行为。”
+
+
+            如果目标文书是检查笔录：
+
+            1. 只输出“过程和结果”段正文，不写“过程和结果：”标题。
+
+            2. 写清检查时间背景、检查原因、出示人民警察证、检查对象、检查结果、检查过程是否合法、被检查人是否配合。
+
+            3. 不要写处罚决定书事实认定，不要写“其行为涉嫌××违法行为”结尾。
+
+            4. 控制在80到300字。
+
+
+            如果目标文书是辨认笔录：
+
+            1. 只输出“辨认过程及结果”中的过程正文，不写标题，不写签名栏。
+
+            2. 写清辨认人与案件关系、办案人员准备照片组、编号排列、告知辨认要求、见证人在场、辨认人进行辨认。
+
+            3. 不要写行政处罚事实段，不要写法律适用和处罚决定。
+
+            4. 控制在120到450字。
+
+
+            如果目标文书是入所表：
+
+            1. 只输出信息卡“违法事实”栏可使用的一段简短事实。
+
+            2. 写清时间、地点、人员、核心行为和涉嫌违法行为/罪名。
+
+            3. 不要写法律适用、处罚决定、证据清单和操作过程。
+
+            4. 控制在60到180字。
+
+
+            如果目标文书是前科证明：
+
+            1. 只输出“未发现某人在本辖区居住期间有违法犯罪记录”这一类证明结果句。
+
+            2. 不要写行政处罚事实、法律适用、检查过程、辨认过程或入所材料。
+
+
+            只输出润色后的段落，不要思考过程。'
+        - id: u3
+          role: user
+          text: '用户选择文书类型：{{#start-node.document_type#}}
+
+
+            已识别案由：
+
+            {{#llm-classify.text#}}
+
+
+            已提取要素：
+
+            {{#llm-extract.text#}}
+
+
+            原始笔录：
+
+            {{#context#}}
+
+
+            请按用户选择的文书类型生成对应段落：'
+        selected: false
+        title: 事实润色
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm-polish
+      position:
+        x: 684
+        y: 260
+      positionAbsolute:
+        x: 684
+        y: 260
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "\nimport json\nimport re\nfrom datetime import date, datetime\n\n\n\
+          def _strip_noise(text: str) -> str:\n    text = text or ''\n    text = re.sub(r'<think>.*?</think>',\
+          \ '', text, flags=re.DOTALL)\n    text = re.sub(r'```\\w*\\n?', '', text)\n\
+          \    return text.strip()\n\n\ndef _extract_json_block(text: str):\n    text\
+          \ = _strip_noise(text)\n    start = text.find('{')\n    end = text.rfind('}')\n\
+          \    if start != -1 and end > start:\n        text = text[start:end + 1]\n\
+          \    text = re.sub(r',\\s*}', '}', text)\n    text = re.sub(r',\\s*]', ']',\
+          \ text)\n    return json.loads(text)\n\n\ndef _clean_content(text: str)\
+          \ -> str:\n    text = _strip_noise(text).replace('\\r\\n', '\\n').replace('\\\
+          r', '\\n')\n    cleaned = []\n    for line in text.split('\\n'):\n     \
+          \   line = re.sub(r'[ \\t]+', ' ', line).strip()\n        if not line:\n\
+          \            continue\n        if cleaned and cleaned[-1] == line:\n   \
+          \         continue\n        cleaned.append(line)\n    return '\\n\\n'.join(cleaned).strip()\n\
+          \n\ndef _trim_final_punct(value) -> str:\n    text = str(value or '').strip()\n\
+          \    text = re.sub(r'[\\s\\u3002\\uff1b;\\uff0c,\\u3001]+$', '', text)\n\
+          \    return text\n\n\ndef _first(*values) -> str:\n    for value in values:\n\
+          \        if isinstance(value, (list, tuple)):\n            value = '、'.join(str(item)\
+          \ for item in value if item)\n        text = str(value or '').strip()\n\
+          \        if text and text.lower() not in ('null', 'none'):\n           \
+          \ return text\n    return ''\n\n\ndef _normalize_datetime(value) -> str:\n\
+          \    text = str(value or '').strip()\n    if not text:\n        return ''\n\
+          \    text = text.replace('：', ':')\n    match = re.search(r'(\\d{4})\\s*年\\\
+          s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日\\s*(\\d{1,2})\\s*时\\s*(\\d{1,2})?\\\
+          s*分?', text)\n    if match:\n        year, month, day, hour, minute = match.groups()\n\
+          \        minute = minute or '00'\n        return f'{int(year):04d}年{int(month):02d}月{int(day):02d}日{int(hour):02d}时{int(minute):02d}分'\n\
+          \    match = re.search(r'(\\d{4})[-/年](\\d{1,2})[-/月](\\d{1,2})日?\\s*(\\\
+          d{1,2})?[:时]?(\\d{1,2})?', text)\n    if match:\n        year, month, day,\
+          \ hour, minute = match.groups()\n        if hour:\n            minute =\
+          \ minute or '00'\n            return f'{int(year):04d}年{int(month):02d}月{int(day):02d}日{int(hour):02d}时{int(minute):02d}分'\n\
+          \        return f'{int(year):04d}年{int(month):02d}月{int(day):02d}日'\n  \
+          \  return text\n\n\ndef _footer_date(value) -> str:\n    text = _normalize_datetime(value)\n\
+          \    match = re.search(r'(\\d{4})年0?(\\d{1,2})月0?(\\d{1,2})日', text)\n \
+          \   if match:\n        year, month, day = match.groups()\n        return\
+          \ f'{int(year):04d}  年 {int(month)} 月{int(day)}日'\n    return text\n\n\n\
+          def _parse_date(value):\n    text = str(value or '').strip()\n    if not\
+          \ text:\n        return None\n    for pattern in (\n        r'(\\d{4})\\\
+          s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日',\n        r'(\\d{4})[./-](\\\
+          d{1,2})[./-](\\d{1,2})',\n    ):\n        match = re.search(pattern, text)\n\
+          \        if match:\n            year, month, day = (int(part) for part in\
+          \ match.groups())\n            try:\n                return date(year, month,\
+          \ day)\n            except ValueError:\n                return None\n  \
+          \  return None\n\n\ndef _birth_from_id(id_number: str):\n    text = re.sub(r'\\\
+          s+', '', str(id_number or ''))\n    match = re.match(r'^\\d{6}(\\d{4})(\\\
+          d{2})(\\d{2})', text)\n    if match:\n        year, month, day = (int(part)\
+          \ for part in match.groups())\n        try:\n            return date(year,\
+          \ month, day)\n        except ValueError:\n            return None\n   \
+          \ return None\n\n\ndef _format_chinese_date(value, default_today: bool =\
+          \ False) -> str:\n    parsed = _parse_date(value)\n    if not parsed and\
+          \ default_today:\n        parsed = date.today()\n    if parsed:\n      \
+          \  return f'{parsed.year:04d}年{parsed.month:02d}月{parsed.day:02d}日'\n  \
+          \  return str(value or '').strip()\n\n\ndef _normalize_doc_type(selected:\
+          \ str, classified: str) -> str:\n    text = str(selected or '').strip()\
+          \ or str(classified or '').strip()\n    if '前科' in text:\n        return\
+          \ '前科证明'\n    if '入所' in text:\n        return '入所表'\n    if '辨认' in text:\n\
+          \        return '辨认笔录'\n    if '检查' in text:\n        return '检查笔录'\n  \
+          \  if '处罚' in text:\n        return '行政处罚决定书'\n    return '行政处罚决定书'\n\n\n\
+          def _space_agency(value: str) -> str:\n    text = re.sub(r'\\s+', '', str(value\
+          \ or '').strip())\n    if not text:\n        text = '藤县公安局'\n    if len(text)\
+          \ <= 12:\n        return ' '.join(text)\n    return text\n\n\ndef _default_doc_number(police_station:\
+          \ str) -> str:\n    from time import time\n    prefix = (police_station\
+          \ or 'XX').replace('公安局', '').replace('分局', '')[:6]\n    return f'{prefix}公行罚决字[{date.today().year}]'\
+          \ + str(int(time() * 1000))[-6:] + '号'\n\n\ndef _normalize_violation(value)\
+          \ -> str:\n    if isinstance(value, (list, tuple)):\n        value = '、'.join(str(item)\
+          \ for item in value if item)\n    text = str(value or '').strip()\n    if\
+          \ not text:\n        return ''\n    try:\n        data = json.loads(text)\n\
+          \        if isinstance(data, dict):\n            text = data.get('case_nature')\
+          \ or data.get('violation_type') or ''\n    except Exception:\n        pass\n\
+          \    text = _strip_noise(str(text))\n    text = re.sub(r\"[\\s\\\"“”'\\\
+          [\\]{}]+\", '', text)\n    text = re.sub(r'^(案件性质|案由|涉嫌|构成|违法行为名称|罪名)[:：]?',\
+          \ '', text)\n    for suffix in ('违法行为', '行政违法行为', '行政违法', '行为'):\n     \
+          \   if text.endswith(suffix) and len(text) > len(suffix):\n            text\
+          \ = text[:-len(suffix)]\n    text = text.strip('：:;；，,。 ')\n    if text\
+          \ in ('无', '不明', '未知', '行政案件', '治安案件', '行政处罚决定书', '检查笔录', '辨认笔录', '入所表',\
+          \ '前科证明'):\n        return ''\n    return text[:40]\n\n\ndef _compact_fact(text:\
+          \ str, max_len: int = 450) -> str:\n    text = _strip_noise(text).replace('\\\
+          r\\n', '\\n').replace('\\r', '\\n')\n    text = re.sub(r'[ \\t]+', ' ',\
+          \ text)\n    text = re.sub(r'\\n+', '。', text)\n    text = re.sub(r'。+',\
+          \ '。', text).strip(' 。')\n    if not text:\n        return ''\n\n    for\
+          \ marker in (\n        '上述事实有以下证据证实', '上述事实有', '根据《', '根据相关法律',\n      \
+          \  '执行方式和期限', '逾期', '一式', '如不服', '附：', '行政处罚决定书已向我宣告'\n    ):\n        pos\
+          \ = text.find(marker)\n        if pos > 0:\n            text = text[:pos].strip('\
+          \ 。')\n\n    raw_sentences = re.findall(r'.+?[。！？!?]|.+$', text)\n    sentences\
+          \ = []\n    drop_keywords = (\n        '接受调查', '依法扣押', '已被扣押', '被传唤', '口头传唤',\n\
+          \        '到案后', '到公安机关', '到派出所', '审批'\n    )\n    for sentence in raw_sentences:\n\
+          \        sentence = sentence.strip(' 。；;')\n        if not sentence:\n \
+          \           continue\n        if sentence.startswith(('证据', '上述事实', '根据',\
+          \ '执行方式', '逾期', '一式', '如不服')):\n            continue\n        if any(keyword\
+          \ in sentence for keyword in drop_keywords):\n            continue\n   \
+          \     sentences.append(sentence + '。')\n\n    if not sentences:\n      \
+          \  sentences = [text.rstrip('。') + '。']\n\n    compact = ''\n    for sentence\
+          \ in sentences:\n        if len(compact) + len(sentence) > max_len and compact:\n\
+          \            break\n        compact += sentence\n    if not compact:\n \
+          \       compact = sentences[0][:max_len].rstrip('，；、。') + '。'\n    if len(compact)\
+          \ > max_len:\n        compact = compact[:max_len].rstrip('，；、。') + '。'\n\
+          \    return compact.strip()\n\n\ndef _ensure_violation_sentence(fact: str,\
+          \ violation: str) -> str:\n    fact = _compact_fact(fact)\n    violation\
+          \ = _normalize_violation(violation)\n    if not fact:\n        return ''\n\
+          \    if not violation:\n        return fact\n    if re.search(r'(涉嫌|构成).{0,40}(违法行为|犯罪|罪)',\
+          \ fact):\n        return fact\n    if violation.endswith('罪'):\n       \
+          \ sentence = f'其行为涉嫌{violation}。'\n    else:\n        sentence = f'其行为涉嫌{violation}违法行为。'\n\
+          \    return fact.rstrip('。；;') + '。' + sentence\n\n\ndef _party_basic(elements:\
+          \ dict) -> str:\n    name = _first(elements.get('party_name'), elements.get('person_name'),\
+          \ elements.get('checked_person_name'))\n    gender = _first(elements.get('party_gender'),\
+          \ elements.get('person_gender'))\n    id_number = _first(elements.get('party_id_number'),\
+          \ elements.get('id_number'), elements.get('person_id_number'))\n    parts\
+          \ = []\n    if name:\n        parts.append(name)\n    if gender:\n     \
+          \   parts.append(gender)\n    if id_number:\n        parts.append(f'身份证号码：{id_number}')\n\
+          \    return '，'.join(parts)\n\n\ndef _witness_basic(elements: dict) -> str:\n\
+          \    name = _first(elements.get('witness_name'))\n    gender = _first(elements.get('witness_gender'))\n\
+          \    id_number = _first(elements.get('witness_id_number'), elements.get('witness_id'))\n\
+          \    parts = []\n    if name:\n        parts.append(name)\n    if gender:\n\
+          \        parts.append(gender)\n    if id_number:\n        parts.append(f'身份证号码：{id_number}')\n\
+          \    return '，'.join(parts)\n\n\ndef _compact_check_process(text: str, party_name:\
+          \ str, violation: str) -> str:\n    text = _strip_noise(text).replace('\\\
+          r\\n', '\\n').replace('\\r', '\\n')\n    text = re.sub(r'<think>.*?</think>',\
+          \ '', text, flags=re.S)\n    text = re.sub(r'过程和结果[:：]?', '', text).strip()\n\
+          \    text = re.sub(r'其行为涉嫌.*?(违法行为|犯罪|罪)。?', '', text)\n    text = re.sub(r'\\\
+          s+', '', text)\n    if not text:\n        reason = f'其涉嫌{violation}违法行为'\
+          \ if violation else '案件调查需要'\n        subject = party_name or '被检查人'\n \
+          \       return f'为收集相关证据材料、认定违法事实，民警经出示人民警察证，对{subject}的身体进行了检查，经检查，{subject}身体无异常，检查过程依法进行，被检查人配合检查工作。'\n\
+          \    if len(text) > 520:\n        text = text[:520].rstrip('，；、。') + '。'\n\
+          \    if not text.endswith('。'):\n        text += '。'\n    return text\n\n\
+          \ndef _build_check_record(elements: dict, case_text: str, polish_text: str,\
+          \ violation: str) -> str:\n    party_name = _first(elements.get('party_name'),\
+          \ elements.get('person_name'), elements.get('checked_person_name'))\n  \
+          \  agency = _first(elements.get('police_station'), elements.get('agency'),\
+          \ '藤县公安局')\n    handling_unit = _first(elements.get('handling_unit'), elements.get('police_station'),\
+          \ '藤县公安局')\n    start_time = _normalize_datetime(_first(elements.get('inspection_time_start'),\
+          \ elements.get('check_time_start'), elements.get('case_date')))\n    end_time\
+          \ = _normalize_datetime(_first(elements.get('inspection_time_end'), elements.get('check_time_end'),\
+          \ start_time))\n    location = _first(elements.get('inspection_location'),\
+          \ elements.get('check_location'), elements.get('case_location'), f'{handling_unit}办案区检查室')\n\
+          \    inspector_unit_1 = _first(elements.get('inspector_unit_1'), elements.get('inspector_unit'),\
+          \ agency)\n    inspector_unit_2 = _first(elements.get('inspector_unit_2'),\
+          \ inspector_unit_1)\n    inspection_object = _first(elements.get('inspection_object'),\
+          \ elements.get('check_object'), f'{party_name}的身体' if party_name else '被检查人的身体')\n\
+          \    party_basic = _party_basic(elements)\n    witness_basic = _witness_basic(elements)\n\
+          \    witness_name = _first(elements.get('witness_name'))\n    inspector_names\
+          \ = _first(elements.get('inspector_names'), elements.get('officer_name'),\
+          \ elements.get('officer_names'))\n    recorder_name = _first(elements.get('recorder_name'))\n\
+          \    reason = _first(elements.get('reason_purpose'), elements.get('inspection_reason'),\
+          \ elements.get('purpose'))\n    if not reason:\n        subject = party_name\
+          \ or '被检查人'\n        if violation:\n            reason = f'调查{subject}是否有涉嫌{violation}的行为，收集相关的证据。'\n\
+          \        else:\n            reason = f'调查{subject}相关情况，收集相关的证据。'\n    process\
+          \ = _compact_check_process(_first(elements.get('process_result'), polish_text,\
+          \ elements.get('illegal_fact'), case_text), party_name, violation)\n   \
+          \ footer_date = _footer_date(_first(elements.get('footer_date'), start_time,\
+          \ date.today().strftime('%Y年%m月%d日')))\n\n    lines = [\n        _space_agency(agency),\n\
+          \        '检 查 笔 录',\n        f'时间：{start_time}至{end_time}' if start_time\
+          \ and end_time else f'时间：{start_time or end_time}',\n        f'地点 ： {location}',\n\
+          \        f'检查人姓名和工作单位：                     {inspector_unit_1}',\n      \
+          \  f'                                           {inspector_unit_2}',\n \
+          \       f'检查或者辨认对象：{inspection_object}',\n        '当事人/辨认人基本情况（姓名、性别、身份证件种类及号码）',\n\
+          \        party_basic,\n        f'见证人基本情况 （姓名、性别、身份证件种类及号码）           {witness_basic}',\n\
+          \        f'事由和目的：{reason}',\n        f'过程和结果：{process}',\n        f'检查人：{inspector_names}\
+          \                              年   月   日',\n        f'记录人：{recorder_name}\
+          \                              年   月   日',\n        f'当事人：{party_name} \
+          \                             年　 月　 日',\n        f'见证人：{witness_name}  \
+          \                                年   月   日',\n        '身体检查照片',\n      \
+          \  f'办案单位：{handling_unit}',\n        f'办案人员：{inspector_names}',\n      \
+          \  f'时    间： {footer_date}',\n    ]\n    return '\\n\\n'.join(lines)\n\n\
+          \ndef _source_line(text: str, prefix: str) -> str:\n    compact_prefix =\
+          \ re.sub(r'[\\s：:]+', '', prefix)\n    for line in str(text or '').replace('\\\
+          r\\n', '\\n').replace('\\r', '\\n').split('\\n'):\n        clean = line.strip()\n\
+          \        if re.sub(r'[\\s：:]+', '', clean).startswith(compact_prefix):\n\
+          \            return clean\n    return ''\n\n\ndef _source_identification_process(text:\
+          \ str) -> str:\n    lines = [line.strip() for line in str(text or '').replace('\\\
+          r\\n', '\\n').replace('\\r', '\\n').split('\\n') if line.strip()]\n    for\
+          \ index, line in enumerate(lines):\n        if re.sub(r'[\\s：:]+', '', line).startswith('辨认过程及结果'):\n\
+          \            parts = []\n            for item in lines[index + 1:]:\n  \
+          \              compact = re.sub(r'[\\s：:]+', '', item)\n               \
+          \ if compact.startswith('辨认人') and '指出' in item:\n                    break\n\
+          \                if compact.startswith('辨认照片') and ('号照片' in item or '就是'\
+          \ in item or '组中' in item):\n                    break\n               \
+          \ if compact.startswith(('至此', '办案人员', '见证人')) or re.search(r'照片.*[（(]\\\
+          d+[）)].*就是', item):\n                    break\n                parts.append(item)\n\
+          \            return ''.join(parts).strip()\n    return ''\n\n\ndef _identification_result_lines(value,\
+          \ source_text: str = '') -> list:\n    if isinstance(value, (list, tuple)):\n\
+          \        raw_lines = [str(item).strip() for item in value if str(item).strip()]\n\
+          \    else:\n        text = str(value or '').strip()\n        raw_lines =\
+          \ [line.strip() for line in re.split(r'[\\r\\n]+', text) if line.strip()]\n\
+          \        if len(raw_lines) <= 1:\n            raw_lines = re.findall(r'辨认照片[^。；;]*[。；;]?',\
+          \ text)\n    if not raw_lines:\n        raw_lines = [\n            line.strip()\n\
+          \            for line in str(source_text or '').replace('\\r\\n', '\\n').replace('\\\
+          r', '\\n').split('\\n')\n            if line.strip().startswith('辨认照片')\n\
+          \        ]\n    lines = []\n    for line in raw_lines:\n        line = re.sub(r'^[\\\
+          -\\d\\.、\\s]+', '', line).strip()\n        if not line:\n            continue\n\
+          \        if not line.endswith(('；', '。', ';')):\n            line += '；'\n\
+          \        lines.append(line)\n    return lines[:5]\n\n\ndef _compact_identification_process(text:\
+          \ str, identifier_name: str, case_text: str) -> str:\n    text = _strip_noise(text\
+          \ or '').replace('\\r\\n', '\\n').replace('\\r', '\\n')\n    text = re.sub(r'辨认过程及结果[:：]?',\
+          \ '', text).strip()\n    if not text:\n        text = _source_line(case_text,\
+          \ '辨认过程及结果')\n    text = re.sub(r'\\s+', '', text)\n    text = re.sub(r'辨认人.*?指出来[:：]?',\
+          \ '', text)\n    text = re.sub(r'辨认照片.*', '', text)\n    text = re.sub(r'至此.*',\
+          \ '', text)\n    subject = identifier_name or '辨认人'\n    if text.endswith('将'):\n\
+          \        text += f'辨认照片提供给{subject}进行辨认'\n    elif text.endswith('将。'):\n\
+          \        text = text[:-1] + f'辨认照片提供给{subject}进行辨认。'\n    if not text:\n\
+          \        return f'辨认人{subject}称其见到相关人员本人或者照片可以辨认出来；办案人员事先准备若干组不同人员正面彩色免冠照片，并分别编号、无规则排列打印在A4纸上。对辨认人说明辨认要求后，在见证人的见证下，将辨认照片提供给辨认人进行辨认。'\n\
+          \    if len(text) > 1200:\n        text = text[:1200].rstrip('，；、。') + '。'\n\
+          \    if not text.endswith('。'):\n        text += '。'\n    return '    '\
+          \ + text\n\n\ndef _build_identification_record(elements: dict, case_text:\
+          \ str, polish_text: str, violation: str) -> str:\n    identifier_line =\
+          \ _source_line(case_text, '辨认人姓名')\n    witness_line = _source_line(case_text,\
+          \ '见证人姓名、单位')\n    officer_line = _source_line(case_text, '办案人员姓名、单位')\n\
+          \n    identifier_name = _first(\n        elements.get('identifier_name'),\n\
+          \        elements.get('identification_person_name'),\n        elements.get('recognizer_name'),\n\
+          \        elements.get('party_name'),\n    )\n    identifier_address = _first(\n\
+          \        elements.get('identifier_address'),\n        elements.get('recognizer_address'),\n\
+          \        elements.get('party_address'),\n        elements.get('party_id_number'),\n\
+          \    )\n    witness_name = _first(elements.get('witness_name'))\n    witness_unit\
+          \ = _first(elements.get('witness_unit'), elements.get('witness_work_unit'))\n\
+          \    witness_address = _first(elements.get('witness_address'), elements.get('witness_id_number'))\n\
+          \    handling_unit = _first(elements.get('handling_unit'), elements.get('police_station'),\
+          \ '藤县公安局')\n\n    if identifier_line:\n        match = re.search(r'辨认人姓名[:：]\\\
+          s*(.*?)\\s*(?:地址[:：]\\s*(.*))?$', identifier_line)\n        if match:\n\
+          \            if not identifier_name:\n                identifier_name =\
+          \ match.group(1).strip()\n            if not identifier_address and match.group(2):\n\
+          \                identifier_address = match.group(2).strip()\n    if witness_line:\n\
+          \        match = re.search(r'见证人姓名、单位[:：]\\s*(.*?)\\s*(?:住址[:：]\\s*(.*))?$',\
+          \ witness_line)\n        if match:\n            witness_part = match.group(1).strip()\n\
+          \            pieces = [piece for piece in re.split(r'\\s+', witness_part)\
+          \ if piece]\n            if pieces and not witness_name:\n             \
+          \   witness_name = pieces[0]\n            if len(pieces) > 1 and not witness_unit:\n\
+          \                witness_unit = ''.join(pieces[1:])\n            if not\
+          \ witness_address and match.group(2):\n                witness_address =\
+          \ match.group(2).strip()\n    if officer_line and handling_unit == '藤县公安局':\n\
+          \        unit = re.sub(r'^办案人员姓名、单位[:：]?', '', officer_line).strip()\n \
+          \       if unit:\n            handling_unit = unit\n\n    officers = _first(elements.get('officer_name'),\
+          \ elements.get('officer_names'), elements.get('handling_officers'))\n  \
+          \  recorder_name = _first(elements.get('recorder_name'))\n    start_time\
+          \ = _normalize_datetime(_first(elements.get('identification_time_start'),\
+          \ elements.get('identification_time'), elements.get('case_date')))\n   \
+          \ end_time = _normalize_datetime(_first(elements.get('identification_time_end'),\
+          \ start_time))\n    location = _first(elements.get('identification_location'),\
+          \ elements.get('case_location'), f'{handling_unit}询问室')\n    identify_object\
+          \ = _first(elements.get('identification_object'), elements.get('recognition_object'),\
+          \ '十二张不同人员正面彩色免冠照片组')\n    purpose = _first(elements.get('identification_purpose'),\
+          \ elements.get('recognition_purpose'))\n    if not purpose:\n        if\
+          \ violation:\n            purpose = f'让辨认人辨别确认照片中是否有涉嫌{violation}的相关人员。'\n\
+          \        else:\n            purpose = '让辨认人辨别确认照片中是否有相关人员。'\n    process\
+          \ = _compact_identification_process(\n        _first(\n            _source_identification_process(case_text),\n\
+          \            elements.get('identification_process'),\n            elements.get('recognition_process'),\n\
+          \            polish_text,\n        ),\n        identifier_name,\n      \
+          \  case_text,\n    )\n    results = _identification_result_lines(\n    \
+          \    _first(elements.get('identification_results'), elements.get('recognition_results'),\
+          \ elements.get('result_lines')),\n        case_text,\n    )\n    while len(results)\
+          \ < 5:\n        results.append('')\n\n    lines = [\n        ' 辨 认 笔 录',\n\
+          \        f'时间：{start_time}至{end_time}' if start_time and end_time else f'时间：{start_time\
+          \ or end_time}',\n        f'地点：{location}',\n        f'办案人员姓名、单位：      \
+          \                  {handling_unit}',\n        f'辨认人姓名：{identifier_name}\
+          \  地址：{identifier_address}',\n        f'见证人姓名、单位：{witness_name} {witness_unit}\
+          \     住址：{witness_address}',\n        f'辨认对象：{identify_object}',\n     \
+          \   f'辨认目的：{purpose}',\n        '辨认过程及结果：',\n        process,\n        f'辨认人{identifier_name}将所有照片认真仔细的审视了一遍，然后指出来：',\n\
+          \        results[0],\n        results[1],\n        results[2],\n       \
+          \ results[3],\n        results[4],\n        '',\n        '',\n        '至此，辨认结束。',\n\
+          \        f'办案人员：{officers}\\u3000\\u3000\\u3000        \\u3000    记录人：{recorder_name}\\\
+          u3000\\u3000\\u3000\\u3000',\n        f'见证人：{witness_name}             \
+          \         辨认人：{identifier_name}\\u3000\\u3000\\u3000\\u3000',\n    ]\n \
+          \   return '\\n\\n'.join(lines)\n\n\ndef _build_penalty_decision(elements:\
+          \ dict, fact_text: str) -> str:\n    elements['police_station'] = elements.get('police_station')\
+          \ or '藤县公安局'\n    elements['doc_number'] = elements.get('doc_number') or\
+          \ _default_doc_number(elements['police_station'])\n    elements['work_unit']\
+          \ = elements.get('work_unit') or '无'\n    elements['criminal_record'] =\
+          \ elements.get('criminal_record') or '无'\n    elements['illegal_fact'] =\
+          \ fact_text\n    elements['evidence_list'] = elements.get('evidence_list')\
+          \ or '检查笔录、违法行为人的陈述和申辩、其他证据'\n    elements['penalty_basis'] = elements.get('penalty_basis')\
+          \ or '《中华人民共和国治安管理处罚法》相关规定'\n    elements['penalty_content'] = elements.get('penalty_content')\
+          \ or '依法作出相应行政处罚'\n    elements['execution_detail'] = elements.get('execution_detail')\
+          \ or '收到决定书之日起15日内按照本决定执行。'\n    elements['reconsideration_org'] = elements.get('reconsideration_org')\
+          \ or '藤县人民政府'\n    elements['lawsuit_court'] = elements.get('lawsuit_court')\
+          \ or '藤县人民法院'\n    elements['stamp_date'] = elements.get('stamp_date') or\
+          \ date.today().strftime('%Y-%m-%d')\n\n    evidence_text = _trim_final_punct(elements.get('evidence_list',\
+          \ ''))\n    penalty_basis_text = _trim_final_punct(elements.get('penalty_basis',\
+          \ ''))\n    basis_suffix = '' if penalty_basis_text.endswith('规定') else\
+          \ '之规定'\n    return '\\n\\n'.join([\n        elements['police_station'],\n\
+          \        '行政处罚决定书',\n        elements['doc_number'],\n        f\"违法行为人{elements.get('party_name',\
+          \ '')}，{elements.get('party_gender', '')}，{elements.get('party_age', '')}岁，居民身份证号码{elements.get('party_id_number',\
+          \ '')}，{elements.get('birth_date', '')}出生，籍贯：{elements.get('native_place',\
+          \ '')}，户籍：{elements.get('household_register', '')}，现住：{elements.get('party_address',\
+          \ '')}，工作单位：{elements.get('work_unit', '')}，违法犯罪经历：{elements.get('criminal_record',\
+          \ '')}。\",\n        elements['illegal_fact'],\n        f\"上述事实有以下证据证实：{evidence_text}。\"\
+          ,\n        f\"根据{penalty_basis_text}{basis_suffix}，现决定对违法行为人{elements.get('party_name',\
+          \ '')}处以{elements.get('penalty_content', '')}。\",\n        f\"执行方式和期限：{elements.get('execution_detail',\
+          \ '')}\",\n        '逾期不履行的，依法承担相应法律后果。',\n        '一式四份，被处罚人和执行单位各一份，一份附卷。',\n\
+          \        f\"如不服本决定，可以在收到本决定书之日起六十日内向{elements.get('reconsideration_org',\
+          \ '')}申请行政复议或者在六个月内向{elements.get('lawsuit_court', '')}提起行政诉讼。\",\n    \
+          \    '附：清单共  份',\n        elements['police_station'],\n        elements['stamp_date'],\n\
+          \        '行政处罚决定书已向我宣告并送达。',\n        '被处罚人:                        被侵害人：',\n\
+          \        '年    月    日                  年    月    日',\n        '接收人员：',\n\
+          \        '接收单位（印）',\n        '年    月    日',\n        '案件编号：',\n        '人员编号：',\n\
+          \    ])\n\n\ndef _build_criminal_record_certificate(elements: dict) -> str:\n\
+          \    name = _first(elements.get('party_name'), elements.get('person_name'),\
+          \ elements.get('checked_person_name'), elements.get('applicant_name'))\n\
+          \    gender = _first(elements.get('party_gender'), elements.get('person_gender'),\
+          \ elements.get('gender'))\n    id_type = _first(elements.get('id_type'),\
+          \ elements.get('certificate_type')) or '居民身份证'\n    id_number = _first(elements.get('party_id_number'),\
+          \ elements.get('id_number'), elements.get('person_id_number'))\n    birth\
+          \ = _format_chinese_date(elements.get('birth_date'))\n    if not birth and\
+          \ id_number:\n        parsed_birth = _birth_from_id(id_number)\n       \
+          \ if parsed_birth:\n            birth = f'{parsed_birth.year:04d}年{parsed_birth.month:02d}月{parsed_birth.day:02d}日'\n\
+          \    household_address = _first(\n        elements.get('household_address'),\n\
+          \        elements.get('household_register_detail'),\n        elements.get('household_register'),\n\
+          \        elements.get('party_address'),\n        elements.get('address'),\n\
+          \    )\n    agency = _first(elements.get('issuing_agency'), elements.get('police_station'),\
+          \ elements.get('handling_unit')) or '广西藤县公安局埌南派出所'\n    issue_date = _format_chinese_date(_first(elements.get('issue_date'),\
+          \ elements.get('stamp_date')), default_today=True)\n    record_result =\
+          \ _first(elements.get('criminal_record_result'), elements.get('criminal_record'))\
+          \ or '未发现'\n    if '有' in record_result and '无' not in record_result and\
+          \ '未发现' not in record_result:\n        result_line = f'经我所民警在全国违法犯罪人员信息资源库、全国在逃人员信息库、全国吸毒人员信息库、广西警务信息综合应用平台和我所档案室查找档案，在本证明出具之日前，发现{name}在本辖区居住期间有违法犯罪记录。'\n\
+          \    else:\n        result_line = f'经我所民警在全国违法犯罪人员信息资源库、全国在逃人员信息库、全国吸毒人员信息库、广西警务信息综合应用平台和我所档案室查找档案，在本证明出具之日前，未发现{name}在本辖区居住期间有违法犯罪记录。'\n\
+          \n    return '\\n\\n'.join([\n        '前科证明',\n        f'{name}，性别：{gender}\
+          \ ，出生日期：{birth}，                  身份证件种类及号码：{id_type}{id_number}，户籍住址：{household_address}。',\n\
+          \        result_line,\n        '特此证明。',\n        agency,\n        issue_date,\n\
+          \    ])\n\n\ndef main(\n    case_text: str = '',\n    classify_text: str\
+          \ = '',\n    extract_text: str = '',\n    polish_text: str = '',\n    selected_doc_type:\
+          \ str = ''\n) -> dict:\n    classified_doc_type = ''\n    case_nature =\
+          \ ''\n    try:\n        classify = _extract_json_block(classify_text)\n\
+          \        classified_doc_type = classify.get('doc_type', '') or ''\n    \
+          \    case_nature = classify.get('case_nature', '') or ''\n    except Exception:\n\
+          \        pass\n\n    elements = {}\n    laws = []\n    try:\n        extract\
+          \ = _extract_json_block(extract_text)\n        if isinstance(extract, dict):\n\
+          \            elements = extract.get('elements', {}) or {}\n            if\
+          \ not case_nature:\n                case_nature = extract.get('case_nature',\
+          \ '') or ''\n            if not case_nature and isinstance(elements, dict):\n\
+          \                case_nature = elements.get('violation_type', '') or ''\n\
+          \            laws = extract.get('suggested_laws', []) or []\n    except\
+          \ Exception:\n        pass\n\n    for key, value in list(elements.items()):\n\
+          \        if value is None:\n            elements[key] = ''\n        elif\
+          \ isinstance(value, str) and value.strip().lower() in ('null', 'none'):\n\
+          \            elements[key] = ''\n\n    doc_type = _normalize_doc_type(selected_doc_type,\
+          \ classified_doc_type)\n    polish_clean = _clean_content(polish_text)\n\
+          \    case_text_clean = _clean_content(case_text)\n    violation_name = _normalize_violation(elements.get('violation_type')\
+          \ or case_nature)\n    if violation_name:\n        case_nature = violation_name\n\
+          \        elements['violation_type'] = violation_name\n\n    if doc_type\
+          \ == '入所表':\n        if polish_clean and not elements.get('entry_fact'):\n\
+          \            elements['entry_fact'] = polish_clean\n        content = '入所材料'\n\
+          \    elif doc_type == '前科证明':\n        content = _build_criminal_record_certificate(elements)\n\
+          \    elif doc_type == '检查笔录':\n        content = _build_check_record(elements,\
+          \ case_text_clean, polish_clean, violation_name)\n    elif doc_type == '辨认笔录':\n\
+          \        content = _build_identification_record(elements, case_text_clean,\
+          \ polish_clean, violation_name)\n    else:\n        fact_source = polish_clean\
+          \ or elements.get('illegal_fact') or case_text_clean\n        fact_text\
+          \ = _ensure_violation_sentence(fact_source, violation_name)\n        content\
+          \ = _build_penalty_decision(elements, fact_text)\n\n    output_content =\
+          \ content.strip() if doc_type in ('检查笔录', '辨认笔录', '入所表', '前科证明') else _clean_content(content)\n\
+          \    return {\n        'content': output_content,\n        'doc_type': doc_type,\n\
+          \        'case_nature': case_nature,\n        'elements': json.dumps(elements,\
+          \ ensure_ascii=False, indent=2),\n        'suggested_laws': '\\n'.join(str(item)\
+          \ for item in laws if item),\n    }\n"
+        code_language: python3
+        outputs:
+          case_nature:
+            type: string
+          content:
+            type: string
+          doc_type:
+            type: string
+          elements:
+            type: string
+          suggested_laws:
+            type: string
+        selected: false
+        title: 模板填充
+        type: code
+        variables:
+        - value_selector:
+          - flatten-text
+          - flat_text
+          variable: case_text
+        - value_selector:
+          - llm-classify
+          - text
+          variable: classify_text
+        - value_selector:
+          - llm-extract
+          - text
+          variable: extract_text
+        - value_selector:
+          - llm-polish
+          - text
+          variable: polish_text
+        - value_selector:
+          - start-node
+          - document_type
+          variable: selected_doc_type
+      height: 54
+      id: code-fill
+      position:
+        x: 986
+        y: 260
+      positionAbsolute:
+        x: 986
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        outputs:
+        - value_selector:
+          - export-word
+          - word_download_link
+          value_type: string
+          variable: word_download_link
+        selected: false
+        title: 输出
+        type: end
+      height: 90
+      id: end-node
+      position:
+        x: 1590
+        y: 260
+      positionAbsolute:
+        x: 1590
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "\nimport json\nimport urllib.request\n\n\nEXPORT_API = 'http://host.docker.internal:8123/api/export-word'\n\
+          \n\ndef main(input_text: str, doc_type: str = '', workflow_run_id: str =\
+          \ '', elements_json: str = '') -> dict:\n    content = str(input_text or\
+          \ '').strip()\n    doc_type = str(doc_type or '').strip()\n    workflow_run_id\
+          \ = str(workflow_run_id or '').strip()\n    elements_json = str(elements_json\
+          \ or '').strip()\n    if not content:\n        return {'word_download_link':\
+          \ ''}\n\n    if '入所' in doc_type:\n        filename = 'generated-entry-materials.zip'\n\
+          \    elif '前科' in doc_type:\n        filename = 'generated-criminal-record-certificate.docx'\n\
+          \    elif '辨认' in doc_type:\n        filename = 'generated-identification-record.docx'\n\
+          \    elif '检查' in doc_type:\n        filename = 'generated-check-record.docx'\n\
+          \    else:\n        filename = 'generated-document.docx'\n    payload =\
+          \ json.dumps({\n        'content': content,\n        'doc_type': doc_type,\n\
+          \        'filename': filename,\n        'workflow_run_id': workflow_run_id,\n\
+          \        'elements': elements_json,\n    }, ensure_ascii=False).encode('utf-8')\n\
+          \    req = urllib.request.Request(\n        EXPORT_API,\n        data=payload,\n\
+          \        headers={'Content-Type': 'application/json; charset=utf-8'},\n\
+          \        method='POST'\n    )\n\n    try:\n        with urllib.request.urlopen(req,\
+          \ timeout=12) as resp:\n            data = json.loads(resp.read().decode('utf-8'))\n\
+          \        url = data.get('url') or ''\n        if not url:\n            return\
+          \ {'word_download_link': 'Word export failed: empty download url'}\n   \
+          \     if '入所' in doc_type:\n            label = chr(19979) + chr(36733)\
+          \ + chr(20837) + chr(25152) + chr(26448) + chr(26009)\n        else:\n \
+          \           label = chr(19979) + chr(36733) + 'Word' + chr(25991) + chr(26723)\n\
+          \        return {'word_download_link': '[' + label + '](' + url + ')'}\n\
+          \    except Exception as exc:\n        return {'word_download_link': 'Word\
+          \ export failed: ' + str(exc)}\n"
+        code_language: python3
+        outputs:
+          word_download_link:
+            children: null
+            type: string
+        selected: false
+        title: Word Export
+        type: code
+        variables:
+        - value_selector:
+          - code-fill
+          - content
+          variable: input_text
+        - value_selector:
+          - code-fill
+          - doc_type
+          variable: doc_type
+        - value_selector:
+          - sys
+          - workflow_run_id
+          variable: workflow_run_id
+        - value_selector:
+          - code-fill
+          - elements
+          variable: elements_json
+      height: 54
+      id: export-word
+      position:
+        x: 1288
+        y: 420
+      positionAbsolute:
+        x: 1288
+        y: 420
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: -477.49877162159714
+      y: 252.27504360713365
+      zoom: 0.659753955386447

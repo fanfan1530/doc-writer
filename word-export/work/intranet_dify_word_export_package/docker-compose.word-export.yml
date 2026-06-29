@@ -1,0 +1,33 @@
+services:
+  word-export:
+    image: python:3.12-slim
+    container_name: word-export
+    working_dir: /workspace
+    command: python /workspace/word_export_service.py
+    restart: unless-stopped
+    ports:
+      - "${WORD_EXPORT_PORT:-8123}:8123"
+    environment:
+      WORD_EXPORT_PORT: "8123"
+      WORD_EXPORT_PUBLIC_BASE_URL: "${WORD_EXPORT_PUBLIC_BASE_URL:-http://127.0.0.1:8123}"
+      WORD_EXPORT_TEMPLATE: /workspace/work/reference_layout.docx
+      WORD_EXPORT_CHECK_TEMPLATE: /workspace/work/check_record_template.docx
+      WORD_EXPORT_IDENTIFICATION_TEMPLATE: /workspace/work/identification_record_template.docx
+      WORD_EXPORT_CRIMINAL_RECORD_TEMPLATE: /workspace/work/criminal_record_template.docx
+      WORD_EXPORT_ENTRY_MATERIALS_TEMPLATE_DIR: /workspace/work/entry_materials_docx_templates
+      WORD_EXPORT_OUTPUT_DIR: /workspace/outputs/word_exports
+    volumes:
+      - ./word_export_service.py:/workspace/word_export_service.py:ro
+      - ./templates/reference_layout.docx:/workspace/work/reference_layout.docx:ro
+      - ./templates/check_record_template.docx:/workspace/work/check_record_template.docx:ro
+      - ./templates/identification_record_template.docx:/workspace/work/identification_record_template.docx:ro
+      - ./templates/criminal_record_template.docx:/workspace/work/criminal_record_template.docx:ro
+      - ./templates/entry_materials_docx_templates:/workspace/work/entry_materials_docx_templates:ro
+      - ./outputs:/workspace/outputs
+    networks:
+      - dify_sandbox
+
+networks:
+  dify_sandbox:
+    external: true
+    name: ${DIFY_SANDBOX_NETWORK:-docker_ssrf_proxy_network}
