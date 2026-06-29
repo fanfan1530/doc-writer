@@ -175,8 +175,8 @@ SEARCH_RECORD_DEFAULT_SLOT_VALUES = {
     "sign_officers": "侦查人员：                       记录人：",
     "sign_party": "当事人：                         见证人：",
     "photo_title": "搜 查 照 片（一）",
-    "photo_caption": "",
-    "footer": "办案单位：          办案人员：          时间：",
+    "photo_caption": "照片说明：",
+    "footer": "办案单位：________                         办案人员：________                         时间：____年__月__日",
 }
 
 ENTRY_MATERIALS_FILENAMES = [
@@ -1402,12 +1402,15 @@ def _extract_search_record_slots(content: str) -> dict[str, str]:
         "object": ("被搜查对象",),
         "basis": ("根据",),
         "process_1": ("过程和结果",),
-        "photo_caption": ("照片说明", "经搜查发现"),
-        "footer": ("办案单位",),
+        "photo_caption": ("照片说明：", "照片说明", "经搜查发现"),
     }.items():
         line = _first_line(lines, *prefixes)
         if line:
             slots[key] = line
+
+    footer_line = _first_line(lines, "办案单位")
+    if footer_line:
+        slots["footer"] = footer_line
 
     for key, prefix, exclusions in (
         ("sign_officers", "侦查人员", ()),
@@ -1419,6 +1422,49 @@ def _extract_search_record_slots(content: str) -> dict[str, str]:
                 break
 
     return slots
+
+
+def _fill_textbox_paragraphs(paragraph: ET.Element, footer_text: str) -> None:
+    """Fill a text-box paragraph's internal paragraphs with multi-line footer data.
+
+    The footer_text is a single line like:
+      "办案单位：XXX公安局                         办案人员：张三                         时间：2026年06月16日"
+    Parses it into unit, officers, date and fills text box paragraphs 0, 2, 4.
+    """
+    import re
+    unit = ""
+    officers = ""
+    date_str = ""
+    m1 = re.search(r"办案单位[：:]\s*(.+?)(?:\s{2,}|$)", footer_text)
+    if m1:
+        unit = m1.group(1).strip()
+    m2 = re.search(r"办案人员[：:]\s*(.+?)(?:\s{2,}|$)", footer_text)
+    if m2:
+        officers = m2.group(1).strip()
+    m3 = re.search(r"时间[：:]\s*(.+?)$", footer_text)
+    if m3:
+        date_str = m3.group(1).strip()
+
+    for txbx in paragraph.iter(f"{W}txbxContent"):
+        tparas = txbx.findall(f"{W}p")
+        if len(tparas) >= 5:
+            _set_textbox_para(tparas[0], f"办案单位：{unit}" if unit else "办案单位：________")
+            _set_textbox_para(tparas[2], f"办案人员：{officers}" if officers else "办案人员：________")
+            _set_textbox_para(tparas[4], f"时间：{date_str}" if date_str else "时间：____年__月__日")
+
+
+def _set_textbox_para(para: ET.Element, text: str) -> None:
+    """Set text in a text box internal paragraph, preserving first run formatting."""
+    all_t = list(para.iter(f"{W}t"))
+    if all_t:
+        all_t[0].text = text
+        for t in all_t[1:]:
+            t.text = ""
+    else:
+        r = ET.SubElement(para, f"{W}r")
+        t = ET.SubElement(r, f"{W}t")
+        t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+        t.text = text
 
 
 def build_search_record_docx(content: str, photos: object = None) -> bytes:
@@ -1450,12 +1496,16 @@ def build_search_record_docx(content: str, photos: object = None) -> bytes:
             10: "sign_officers",
             11: "sign_party",
             13: "photo_title",
-            16: "photo_caption",
-            25: "footer",
+            35: "photo_caption",
         }
         for index, slot in mapping.items():
             if index < len(paragraphs):
                 _set_paragraph_text(paragraphs[index], slots.get(slot, ""))
+
+        # Fill P44 text box footer (multi-line, 5 internal paragraphs)
+        footer_text = slots.get("footer", "")
+        if len(paragraphs) > 44:
+            _fill_textbox_paragraphs(paragraphs[44], footer_text)
 
         document_xml = ET.tostring(root, encoding="utf-8", xml_declaration=True)
         keep_image_ids = _collect_image_relationship_ids(root)
