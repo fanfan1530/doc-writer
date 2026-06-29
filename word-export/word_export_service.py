@@ -1430,20 +1430,26 @@ def _fill_textbox_paragraphs(paragraph: ET.Element, footer_text: str) -> None:
     The footer_text is a single line like:
       "办案单位：XXX公安局                         办案人员：张三                         时间：2026年06月16日"
     Parses it into unit, officers, date and fills text box paragraphs 0, 2, 4.
+    Uses label positions to extract values between them, avoiding greedy-regex issues
+    when a field is empty.
     """
     import re
-    unit = ""
-    officers = ""
-    date_str = ""
-    m1 = re.search(r"办案单位[：:]\s*(.+?)(?:\s{2,}|$)", footer_text)
-    if m1:
-        unit = m1.group(1).strip()
-    m2 = re.search(r"办案人员[：:]\s*(.+?)(?:\s{2,}|$)", footer_text)
-    if m2:
-        officers = m2.group(1).strip()
-    m3 = re.search(r"时间[：:]\s*(.+?)$", footer_text)
-    if m3:
-        date_str = m3.group(1).strip()
+
+    def _extract(label: str, next_label: str | None) -> str:
+        m = re.search(label + r"[：:]\s*", footer_text)
+        if not m:
+            return ""
+        start = m.end()
+        if next_label:
+            nm = re.search(next_label + r"[：:]", footer_text)
+            end = nm.start() if nm else len(footer_text)
+        else:
+            end = len(footer_text)
+        return footer_text[start:end].strip()
+
+    unit = _extract("办案单位", "办案人员")
+    officers = _extract("办案人员", "时间")
+    date_str = _extract("时间", None)
 
     for txbx in paragraph.iter(f"{W}txbxContent"):
         tparas = txbx.findall(f"{W}p")
