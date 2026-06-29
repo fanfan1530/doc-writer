@@ -43,13 +43,16 @@ ENTRY_MATERIALS_TEMPLATE_DIR = Path(
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 XML_NS = "http://www.w3.org/XML/1998/namespace"
 W = f"{{{W_NS}}}"
 R = f"{{{R_NS}}}"
+A = f"{{{A_NS}}}"
 XML = f"{{{XML_NS}}}"
 
 ET.register_namespace("w", W_NS)
 ET.register_namespace("r", R_NS)
+ET.register_namespace("a", A_NS)
 ET.register_namespace("xml", XML_NS)
 
 SLOT_ORDER = [
@@ -484,10 +487,18 @@ def _filter_image_relationships(data: bytes, keep_ids: set[str]) -> bytes:
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
 
+def _has_image_embed(element: ET.Element) -> bool:
+    """True if the element is a drawing/pict that references an image via r:embed."""
+    for blip in element.iter(f"{A}blip"):
+        if blip.get(f"{R}embed"):
+            return True
+    return False
+
+
 def _remove_inline_images(node: ET.Element) -> None:
     image_tags = {f"{W}pict", f"{W}drawing", f"{W}object"}
     for child in list(node):
-        if child.tag in image_tags:
+        if child.tag in image_tags and _has_image_embed(child):
             node.remove(child)
         else:
             _remove_inline_images(child)
@@ -498,7 +509,7 @@ def _trim_inline_images(node: ET.Element, keep_count: int, state: dict[str, int]
         state = {"seen": 0}
     image_tags = {f"{W}pict", f"{W}drawing", f"{W}object"}
     for child in list(node):
-        if child.tag in image_tags:
+        if child.tag in image_tags and _has_image_embed(child):
             if state["seen"] >= keep_count:
                 node.remove(child)
             state["seen"] += 1
