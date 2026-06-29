@@ -174,12 +174,9 @@ SEARCH_RECORD_DEFAULT_SLOT_VALUES = {
     "process_3": "搜查过程进行拍照，至此搜查结束。",
     "sign_officers": "侦查人员：                       记录人：",
     "sign_party": "当事人：                         见证人：",
-    "photo1_title": "搜 查 照 片（一）",
-    "photo1_caption": "",
-    "photo1_footer": "办案单位：          办案人员：          时间：",
-    "photo2_title": "搜 查 照 片（二）",
-    "photo2_caption": "",
-    "photo2_footer": "办案单位：          办案人员：          时间：",
+    "photo_title": "搜 查 照 片（一）",
+    "photo_caption": "",
+    "footer": "办案单位：          办案人员：          时间：",
 }
 
 ENTRY_MATERIALS_FILENAMES = [
@@ -1405,23 +1402,12 @@ def _extract_search_record_slots(content: str) -> dict[str, str]:
         "object": ("被搜查对象",),
         "basis": ("根据",),
         "process_1": ("过程和结果",),
+        "photo_caption": ("照片说明", "经搜查发现"),
+        "footer": ("办案单位",),
     }.items():
         line = _first_line(lines, *prefixes)
         if line:
             slots[key] = line
-
-    # Collect all caption and footer lines for two-photo support
-    caption_prefixes = ("照片说明：", "照片说明", "经搜查发现")
-    footer_prefixes = ("办案单位：", "办案单位")
-    caption_lines = [l for l in lines if any(_line_starts(l, p) for p in caption_prefixes)]
-    footer_lines = [l for l in lines if any(_line_starts(l, p) for p in footer_prefixes)]
-
-    if caption_lines:
-        slots["photo1_caption"] = caption_lines[0]
-        slots["photo2_caption"] = caption_lines[-1] if len(caption_lines) >= 2 else caption_lines[0]
-    if footer_lines:
-        slots["photo1_footer"] = footer_lines[0]
-        slots["photo2_footer"] = footer_lines[-1] if len(footer_lines) >= 2 else footer_lines[0]
 
     for key, prefix, exclusions in (
         ("sign_officers", "侦查人员", ()),
@@ -1463,12 +1449,9 @@ def build_search_record_docx(content: str, photos: object = None) -> bytes:
             9: "process_3",
             10: "sign_officers",
             11: "sign_party",
-            13: "photo1_title",
-            16: "photo1_caption",
-            18: "photo1_footer",
-            20: "photo2_title",
-            23: "photo2_caption",
-            25: "photo2_footer",
+            13: "photo_title",
+            16: "photo_caption",
+            25: "footer",
         }
         for index, slot in mapping.items():
             if index < len(paragraphs):
